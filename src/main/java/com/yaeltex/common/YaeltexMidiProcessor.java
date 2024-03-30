@@ -40,7 +40,7 @@ public class YaeltexMidiProcessor {
     }
     
     private void handlePing() {
-        blinkCounter = (blinkCounter + 1) % 8;
+        blinkCounter = (blinkCounter + 1) % 16;
         if (!timedEvents.isEmpty()) {
             for (final TimedEvent event : timedEvents) {
                 event.process();
@@ -80,16 +80,24 @@ public class YaeltexMidiProcessor {
         });
     }
     
+    public YaeltexButtonLedState blinkSlow(final YaeltexButtonLedState color, final YaeltexButtonLedState offColor) {
+        return blinkCounter % 16 < 8 ? color : offColor;
+    }
+    
     public YaeltexButtonLedState blinkSlow(final YaeltexButtonLedState color) {
-        return blinkCounter % 8 < 4 ? color : YaeltexButtonLedState.OFF;
+        return blinkCounter % 16 < 8 ? color : YaeltexButtonLedState.OFF;
     }
     
     public YaeltexButtonLedState blinkMid(final YaeltexButtonLedState color) {
-        return blinkCounter % 4 < 2 ? color : YaeltexButtonLedState.OFF;
+        return blinkCounter % 8 < 4 ? color : YaeltexButtonLedState.OFF;
+    }
+    
+    public YaeltexButtonLedState blinkMid(final YaeltexButtonLedState color, final YaeltexButtonLedState offColor) {
+        return blinkCounter % 8 < 4 ? color : offColor;
     }
     
     public YaeltexButtonLedState blinkFast(final YaeltexButtonLedState color) {
-        return blinkCounter % 2 == 0 ? color : YaeltexButtonLedState.OFF;
+        return blinkCounter % 4 < 2 ? color : YaeltexButtonLedState.OFF;
     }
     
     

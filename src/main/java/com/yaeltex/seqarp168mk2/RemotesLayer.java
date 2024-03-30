@@ -12,6 +12,7 @@ import com.bitwig.extensions.framework.values.BooleanValueObject;
 import com.yaeltex.common.YaeltexButtonLedState;
 import com.yaeltex.common.bindings.EncoderParameterBankBinding;
 import com.yaeltex.common.controls.RingEncoder;
+import com.yaeltex.seqarp168mk2.device.OffsetRemotesGroup;
 
 @Component
 public class RemotesLayer extends Layer {
@@ -24,7 +25,7 @@ public class RemotesLayer extends Layer {
     private final Layer deviceRemoteLayer;
     private final Layer projectRemoteLayer;
     
-    private final YaeltexButtonLedState[] PARAM_COLORS = {
+    public static final YaeltexButtonLedState[] PARAM_COLORS = {
         YaeltexButtonLedState.RED,
         YaeltexButtonLedState.ORANGE,
         YaeltexButtonLedState.YELLOW,
@@ -48,11 +49,11 @@ public class RemotesLayer extends Layer {
         cursorTrack = viewControl.getCursorTrack();
         final PinnableCursorDevice cursorDevice = viewControl.getCursorDevice();
         final Track rootTrack = viewControl.getRootTrack();
-        final RemotesGroup deviceGroup = new RemotesGroup("DEVICE",
+        final OffsetRemotesGroup deviceGroup = new OffsetRemotesGroup("DEVICE",
             i -> cursorDevice.createCursorRemoteControlsPage("TRACK_%d".formatted(i + 1), 8, null), 4);
-        final RemotesGroup trackGroup = new RemotesGroup("TRACK",
+        final OffsetRemotesGroup trackGroup = new OffsetRemotesGroup("TRACK",
             i -> cursorTrack.createCursorRemoteControlsPage("TRACK_%d".formatted(i + 1), 8, null), 4);
-        final RemotesGroup projectGroup = new RemotesGroup("PROJECT",
+        final OffsetRemotesGroup projectGroup = new OffsetRemotesGroup("PROJECT",
             i -> rootTrack.createCursorRemoteControlsPage("TRACK_%d".formatted(i + 1), 8, null), 4);
         
         this.trackRemoteLayer = new Layer(layers, "TRACK_REMOTES");
@@ -65,7 +66,7 @@ public class RemotesLayer extends Layer {
         assignRemotes(hwElements, projectGroup, projectRemoteLayer);
     }
     
-    private void assignRemotes(final SeqArpHardwareElements hwElements, final RemotesGroup trackGroup,
+    private void assignRemotes(final SeqArpHardwareElements hwElements, final OffsetRemotesGroup trackGroup,
         final Layer layer) {
         for (int i = 0; i < 4; i++) {
             final CursorRemoteControlsPage remotes = trackGroup.getRemotes(i);
@@ -76,7 +77,7 @@ public class RemotesLayer extends Layer {
                 final YaeltexButtonLedState paramColor = PARAM_COLORS[j];
                 parameter.exists().markInterested();
                 layer.addBinding(new EncoderParameterBankBinding(encoder, parameter.value(), pageInfo));
-                encoder.bindLight(layer, () -> parameter.exists().get() ? paramColor : YaeltexButtonLedState.OFF);
+                encoder.bindLight(layer, () -> pageInfo.get() ? paramColor : YaeltexButtonLedState.OFF);
             }
         }
     }

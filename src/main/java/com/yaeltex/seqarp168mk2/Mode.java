@@ -4,14 +4,7 @@ public enum Mode {
     ARP,
     SEQUENCER,
     REMOTES,
-    SENDS;
+    SENDS,
+    PERFORMANCE
     
-    public Mode next() {
-        return switch (this) {
-            case ARP -> SEQUENCER;
-            case SEQUENCER -> SENDS;
-            case SENDS -> REMOTES;
-            case REMOTES -> ARP;
-        };
-    }
 }
