@@ -28,6 +28,15 @@ public abstract class DeviceConfig {
         return stepEncoderMode;
     }
     
+    protected void changeDeviceFocus(final int which) {
+        if (which == 1 && this.deviceFocus.get() == FocusDeviceMode.DEVICE_1) {
+            deviceFocus.set(FocusDeviceMode.DEVICE_2);
+        } else if (which == 0 && this.deviceFocus.get() == FocusDeviceMode.DEVICE_2) {
+            deviceFocus.set(FocusDeviceMode.DEVICE_1);
+        }
+    }
+    
+    
     public void changeEncoderMode(final boolean pressed) {
     }
 }

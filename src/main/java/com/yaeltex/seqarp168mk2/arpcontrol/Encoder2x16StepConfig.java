@@ -1,7 +1,9 @@
 package com.yaeltex.seqarp168mk2.arpcontrol;
 
+import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.Layers;
 import com.bitwig.extensions.framework.values.ValueObject;
+import com.yaeltex.common.bindings.EncoderTriggerBinding;
 import com.yaeltex.seqarp168mk2.BitwigViewControl;
 import com.yaeltex.seqarp168mk2.SeqArpHardwareElements;
 import com.yaeltex.seqarp168mk2.device.FocusDevice;
@@ -12,10 +14,12 @@ public class Encoder2x16StepConfig extends DeviceConfig {
     private final ArpEncoderLayer offsetLayer;
     private final ArpEncoderLayer gateLayer;
     private final ArpEncoderLayer velLayer;
+    private final Layer changeLayer;
     
     public Encoder2x16StepConfig(final Layers layers, final SeqArpHardwareElements hwElements,
         final BitwigViewControl viewControl, final ValueObject<FocusDeviceMode> deviceFocus) {
         super(ControlMode.MODE16x2, deviceFocus);
+        changeLayer = new Layer(layers, "2x16_CHANGE_LAYER");
         noteLayer = new ArpEncoderLayer(layers, "2x16Device_note");
         offsetLayer = new ArpEncoderLayer(layers, "2x16Device_offset");
         gateLayer = new ArpEncoderLayer(layers, "2x16Device_gate");
@@ -30,6 +34,10 @@ public class Encoder2x16StepConfig extends DeviceConfig {
             bindGates(gateLayer, i, 1, hwElements, viewControl.getArpDevice2());
             bindVelocities(velLayer, i, 0, hwElements, viewControl.getArpDevice1());
             bindVelocities(velLayer, i, 1, hwElements, viewControl.getArpDevice2());
+            changeLayer.addBinding(
+                new EncoderTriggerBinding(hwElements.getEncoder(i), () -> this.changeDeviceFocus(0)));
+            changeLayer.addBinding(
+                new EncoderTriggerBinding(hwElements.getEncoder(i + 16), () -> this.changeDeviceFocus(1)));
         }
     }
     
@@ -81,6 +89,7 @@ public class Encoder2x16StepConfig extends DeviceConfig {
         if (!active) {
             return;
         }
+        changeLayer.setIsActive(true);
         noteLayer.setIsActive(stepEncoderMode == StepEncoderMode.DEFAULT);
         offsetLayer.setIsActive(stepEncoderMode == StepEncoderMode.MODE_1);
         gateLayer.setIsActive(stepEncoderMode == StepEncoderMode.MODE_2);
@@ -89,6 +98,7 @@ public class Encoder2x16StepConfig extends DeviceConfig {
     
     public void setIsActive(final boolean active) {
         this.active = active;
+        changeLayer.setIsActive(active);
         if (active) {
             updateLayers();
         } else {

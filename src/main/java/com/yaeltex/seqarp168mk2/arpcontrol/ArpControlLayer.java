@@ -16,9 +16,6 @@ import com.yaeltex.seqarp168mk2.device.FocusDevice;
 
 @Component
 public class ArpControlLayer extends Layer {
-    // TODO 1 Retrigger consider both layers
-    // TODO 2 Time Warp is momentary RATE bothLayers
-    
     private final BitwigViewControl viewControl;
     private DeviceConfig currentEncoderMode;
     private final ButtonDeviceConfiguration defaultButtonConfiguration;
@@ -103,6 +100,10 @@ public class ArpControlLayer extends Layer {
     
     public ArpButtonMode getButtonMode() {
         return buttonMode;
+    }
+    
+    public void setTimeWarpActive(final boolean active) {
+        timeWarpConfiguration.setIsActive(active);
     }
     
     private void updateButtonMode() {
@@ -214,7 +215,4 @@ public class ArpControlLayer extends Layer {
         retrigConfiguration.setIsActive(false);
     }
     
-    public void setTimeWarpActive(final boolean active) {
-        timeWarpConfiguration.setIsActive(active);
-    }
 }

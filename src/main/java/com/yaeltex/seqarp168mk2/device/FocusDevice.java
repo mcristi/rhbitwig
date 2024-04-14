@@ -8,7 +8,6 @@ import com.bitwig.extension.controller.api.DeviceBank;
 import com.bitwig.extension.controller.api.PinnableCursorDevice;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
 import com.yaeltex.seqarp168mk2.BitwigViewControl;
-import com.yaeltex.seqarp168mk2.SeqArp168Extension;
 
 public class FocusDevice {
     
@@ -40,17 +39,10 @@ public class FocusDevice {
         deviceBank.setDeviceMatcher(viewControl.getArpDeviceMatcher());
         focusDevice = deviceBank.getItemAt(0);
         focusDevice.exists().addValueObserver(this::handleArpDeviceExistChanged);
-        focusDevice.presetName().addValueObserver(name -> {
-            host.scheduleTask(() -> determinePresetNameChanged(name), 10);
-        });
+        focusDevice.presetName()
+            .addValueObserver(name -> host.scheduleTask(() -> determinePresetNameChanged(name), 10));
         arpDevice = new BitwigArpDevice(index, focusDevice);
         
-        cursorDevice.name().addValueObserver(s -> {
-            //            if (!s.equals("Arpeggiator")) {
-            //                slotState = DeviceSlotState.EMPTY;
-            //                arpInstance = null;
-            //            }
-        });
         cursorDevice.isPinned().addValueObserver(this::handleIsPinned);
         
         bindCustom();
@@ -160,7 +152,7 @@ public class FocusDevice {
     private void assignArpInstance() {
         final String trackName = cursorTrack.name().get();
         final String presetName = focusDevice.presetName().get();
-        SeqArp168Extension.println("ASSIGN ARP <%d> %s %s", index, presetName, trackName);
+        //SeqArp168Extension.println("ASSIGN ARP <%d> %s %s", index, presetName, trackName);
         arpInstance = viewControl.getArpInstance(trackName, presetName);
         if (cursorDevice.isPinned().get()) {
             slotState = DeviceSlotState.LOCKED;
@@ -175,12 +167,14 @@ public class FocusDevice {
     }
     
     private void handleArpDeviceExistChanged(final boolean exists) {
-        SeqArp168Extension.println(" Focus %d  %s", index, exists);
+        //SeqArp168Extension.println(" Focus %d  %s", index, exists);
         if (!exists) {
             if (slotState != DeviceSlotState.EMPTY) {
                 slotState = DeviceSlotState.EMPTY;
                 arpInstance = null;
             }
+        } else {
+            assignArpInstance();
         }
     }
     

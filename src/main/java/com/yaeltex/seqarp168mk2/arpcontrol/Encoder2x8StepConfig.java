@@ -2,7 +2,10 @@ package com.yaeltex.seqarp168mk2.arpcontrol;
 
 import com.bitwig.extensions.framework.Layers;
 import com.bitwig.extensions.framework.values.ValueObject;
+import com.yaeltex.common.bindings.EncoderTriggerBinding;
+import com.yaeltex.common.controls.RingEncoder;
 import com.yaeltex.seqarp168mk2.BitwigViewControl;
+import com.yaeltex.seqarp168mk2.SeqArp168Extension;
 import com.yaeltex.seqarp168mk2.SeqArpHardwareElements;
 import com.yaeltex.seqarp168mk2.device.FocusDevice;
 
@@ -23,7 +26,16 @@ public class Encoder2x8StepConfig extends DeviceConfig {
             bindVelocities(layer2, i, 0, hwElements, viewControl.getArpDevice1());
             bindVelocities(layer2, i, 1, hwElements, viewControl.getArpDevice2());
         }
-        //deviceFocus.addValueObserver(((oldValue, newValue) -> changeDeviceFocus(newValue)));
+        for (int i = 0; i < 32; i++) {
+            final int section = (i % 8) / 4;
+            final RingEncoder encoder = hwElements.getEncoder(i);
+            layer1.addBinding(
+                new EncoderTriggerBinding(hwElements.getEncoder(i), () -> this.changeDeviceFocus(section)));
+            if (i > 15) {
+                layer2.addBinding(
+                    new EncoderTriggerBinding(hwElements.getEncoder(i), () -> this.changeDeviceFocus(section)));
+            }
+        }
     }
     
     private void bindNotesGates(final ArpEncoderLayer layer, final int index, final int section,
@@ -52,6 +64,7 @@ public class Encoder2x8StepConfig extends DeviceConfig {
     
     private void setEncoderMode(final StepEncoderMode mode) {
         this.stepEncoderMode = mode;
+        SeqArp168Extension.println(" Enc Mode = %s", mode);
         updateLayers();
     }
     
@@ -60,9 +73,7 @@ public class Encoder2x8StepConfig extends DeviceConfig {
             return;
         }
         layer1.setIsActive(true);
-        if (this.stepEncoderMode == StepEncoderMode.MODE_1) {
-            layer2.setIsActive(true);
-        }
+        layer2.setIsActive(this.stepEncoderMode == StepEncoderMode.MODE_1);
     }
     
     public void setIsActive(final boolean active) {
