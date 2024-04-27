@@ -56,7 +56,7 @@ public class FuseExtension extends ControllerExtension {
         }
         
         final Context diContext = new Context(this);
-        final YaeltexMidiProcessor midiProcessor = new YaeltexMidiProcessor(getHost());
+        final YaeltexMidiProcessor midiProcessor = new YaeltexMidiProcessor(getHost(), 1);
         diContext.registerService(YaeltexMidiProcessor.class, midiProcessor);
         mainLayer = new Layer(diContext.getService(Layers.class), "MAIN_LAYER");
         for (int i = 0; i < 4; i++) {

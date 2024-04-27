@@ -65,8 +65,8 @@ public class HwElements {
     public HwElements(final ControllerHost host, final HardwareSurface surface,
         final YaeltexMidiProcessor midiProcessor) {
         surface.setPhysicalSize(430, 330);
-        masterSlider = createSliderPitchBend("MASTER_FILTER", surface, midiProcessor, 6);
-        crossFader = createSliderPitchBend("CROSS_FADER", surface, midiProcessor, 7);
+        masterSlider = createSliderPitchBend("MASTER_FILTER", surface, midiProcessor, 0, 6);
+        crossFader = createSliderPitchBend("CROSS_FADER", surface, midiProcessor, 0, 7);
         //crossFader.value().addValueObserver(v -> FuseExtension.println(" > %f", v));
         for (int i = 0; i < 6; i++) {
             stripControls.add(createStripControl(i, surface, midiProcessor));
@@ -79,8 +79,8 @@ public class HwElements {
         synthControl6 = createSynthControl2(3, surface, midiProcessor);
         
         for (int i = 0; i < 4; i++) {
-            masterControls[i] = createKnob("MASTER_KNOB_%d".formatted(i + 1), surface, midiProcessor, 0, 0x8 + i);
-            fxControls[i] = createKnob("FX_KNOB_%d".formatted(i + 1), surface, midiProcessor, 0, 0x4 + i);
+            masterControls[i] = createKnob("MASTER_KNOB_%d".formatted(i + 1), surface, midiProcessor, 0, 0, 0x8 + i);
+            fxControls[i] = createKnob("FX_KNOB_%d".formatted(i + 1), surface, midiProcessor, 0, 0, 0x4 + i);
         }
         
         for (int i = 0; i < 8; i++) {
@@ -96,9 +96,9 @@ public class HwElements {
     }
     
     private HardwareSlider createSliderPitchBend(final String name, final HardwareSurface surface,
-        final YaeltexMidiProcessor midiProcessor, final int channel) {
+        final YaeltexMidiProcessor midiProcessor, final int port, final int channel) {
         final HardwareSlider fader = surface.createHardwareSlider(name);
-        final MidiIn midiIn = midiProcessor.getMidiIn();
+        final MidiIn midiIn = midiProcessor.getMidiIn(port);
         fader.setAdjustValueMatcher(midiIn.createAbsolutePitchBendValueMatcher(channel));
         return fader;
     }
@@ -107,7 +107,7 @@ public class HwElements {
         final YaeltexMidiProcessor midiProcessor) {
         final StripControlOffsets config = midiMappings[index];
         final HardwareSlider fader =
-            createSliderPitchBend("MIX_FADER_%d".formatted(index + 1), surface, midiProcessor, index);
+            createSliderPitchBend("MIX_FADER_%d".formatted(index + 1), surface, midiProcessor, 0, index);
         final RgbButton abButton =
             new RgbButton(config.abOffset(), "AB_%d".formatted(index + 1), surface, midiProcessor);
         final RgbButton cueButton =
@@ -120,12 +120,12 @@ public class HwElements {
         final List<AbsoluteHardwareKnob> fxKnobs = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
             fxKnobs.add(
-                createKnob("CH_%d_FX%d".formatted(index + 1, i + 1), surface, midiProcessor, 0, knobOffset + i));
+                createKnob("CH_%d_FX%d".formatted(index + 1, i + 1), surface, midiProcessor, 0, 0, knobOffset + i));
         }
         final AbsoluteHardwareKnob plusKnob =
-            createKnob("CH_%d_PLUS".formatted(index + 1), surface, midiProcessor, 0, 0x44 + index * 2);
+            createKnob("CH_%d_PLUS".formatted(index + 1), surface, midiProcessor, 0, 0, 0x44 + index * 2);
         final AbsoluteHardwareKnob multKnob =
-            createKnob("CH_%d_MULT".formatted(index + 1), surface, midiProcessor, 0, 0x45 + index * 2);
+            createKnob("CH_%d_MULT".formatted(index + 1), surface, midiProcessor, 0, 0, 0x45 + index * 2);
         final StripControl control =
             new StripControl(index, fader, abButton, cueButton, fxButton, muteButton, fxKnobs, plusKnob, multKnob);
         control.applySurface();
@@ -136,16 +136,16 @@ public class HwElements {
         final YaeltexMidiProcessor midiProcessor) {
         final SynthControlOffset config = controlCc[index];
         final HardwareSlider cutoff =
-            createSliderCc("SC_CUTOFF_%d".formatted(index + 1), surface, midiProcessor, 0, config.faderCc());
+            createSliderCc("SC_CUTOFF_%d".formatted(index + 1), surface, midiProcessor, 0, 0, config.faderCc());
         final HardwareSlider resonance =
-            createSliderCc("SC_RESONANCE_%d".formatted(index + 1), surface, midiProcessor, 0, config.faderCc() + 1);
+            createSliderCc("SC_RESONANCE_%d".formatted(index + 1), surface, midiProcessor, 0, 0, config.faderCc() + 1);
         final HardwareSlider modulation =
-            createSliderCc("SC_MOD_%d".formatted(index + 1), surface, midiProcessor, 0, config.faderCc() + 2);
+            createSliderCc("SC_MOD_%d".formatted(index + 1), surface, midiProcessor, 0, 0, config.faderCc() + 2);
         final HardwareSlider amount =
-            createSliderCc("SC_AMT_%d".formatted(index + 1), surface, midiProcessor, 0, config.faderCc() + 3);
+            createSliderCc("SC_AMT_%d".formatted(index + 1), surface, midiProcessor, 0, 0, config.faderCc() + 3);
         final AbsoluteHardwareKnob[] adsrs = new AbsoluteHardwareKnob[4];
         for (int i = 0; i < 4; i++) {
-            adsrs[i] = createKnob("SC_%s_%d".formatted(ADSR_LABEL[i], index + 1), surface, midiProcessor, 0,
+            adsrs[i] = createKnob("SC_%s_%d".formatted(ADSR_LABEL[i], index + 1), surface, midiProcessor, 0, 0,
                 config.knobOffset() + i);
         }
         final RgbButton[] buttons = new RgbButton[4];
@@ -162,16 +162,16 @@ public class HwElements {
         final YaeltexMidiProcessor midiProcessor) {
         final SynthControlOffset config = controlCc[index + 2];
         final AbsoluteHardwareKnob modulation =
-            createKnob("SC2_MOD_%d".formatted(index + 1), surface, midiProcessor, 0, config.faderCc());
+            createKnob("SC2_MOD_%d".formatted(index + 1), surface, midiProcessor, 0, 0, config.faderCc());
         final AbsoluteHardwareKnob amount =
-            createKnob("SC2_AMT_%d".formatted(index + 1), surface, midiProcessor, 0, config.faderCc() + 1);
+            createKnob("SC2_AMT_%d".formatted(index + 1), surface, midiProcessor, 0, 0, config.faderCc() + 1);
         final AbsoluteHardwareKnob cutoff =
-            createKnob("SC2_CUTOFF_%d".formatted(index + 1), surface, midiProcessor, 0, config.faderCc() + 2);
+            createKnob("SC2_CUTOFF_%d".formatted(index + 1), surface, midiProcessor, 0, 0, config.faderCc() + 2);
         final AbsoluteHardwareKnob resonance =
-            createKnob("SC2_RESONANCE_%d".formatted(index + 1), surface, midiProcessor, 0, config.faderCc() + 3);
+            createKnob("SC2_RESONANCE_%d".formatted(index + 1), surface, midiProcessor, 0, 0, config.faderCc() + 3);
         final AbsoluteHardwareKnob[] adsrs = new AbsoluteHardwareKnob[4];
         for (int i = 0; i < 4; i++) {
-            adsrs[i] = createKnob("SC2_%s_%d".formatted(ADSR_LABEL[i], index + 1), surface, midiProcessor, 0,
+            adsrs[i] = createKnob("SC2_%s_%d".formatted(ADSR_LABEL[i], index + 1), surface, midiProcessor, 0, 0,
                 config.knobOffset() + i);
         }
         
@@ -179,9 +179,9 @@ public class HwElements {
     }
     
     private AbsoluteHardwareKnob createKnob(final String name, final HardwareSurface surface,
-        final YaeltexMidiProcessor midiProcessor, final int channel, final int ccNr) {
+        final YaeltexMidiProcessor midiProcessor, final int port, final int channel, final int ccNr) {
         final AbsoluteHardwareKnob knob = surface.createAbsoluteHardwareKnob(name);
-        final MidiIn midiIn = midiProcessor.getMidiIn();
+        final MidiIn midiIn = midiProcessor.getMidiIn(0);
         knob.setAdjustValueMatcher(midiIn.createAbsoluteCCValueMatcher(channel, ccNr));
         final MultiStateHardwareLight knobLight = surface.createMultiStateHardwareLight(name + "_LIGHT");
         knob.setBackgroundLight(knobLight);
@@ -239,9 +239,9 @@ public class HwElements {
     }
     
     private HardwareSlider createSliderCc(final String name, final HardwareSurface surface,
-        final YaeltexMidiProcessor midiProcessor, final int channel, final int ccNr) {
+        final YaeltexMidiProcessor midiProcessor, final int port, final int channel, final int ccNr) {
         final HardwareSlider fader = surface.createHardwareSlider(name);
-        final MidiIn midiIn = midiProcessor.getMidiIn();
+        final MidiIn midiIn = midiProcessor.getMidiIn(port);
         fader.setAdjustValueMatcher(midiIn.createAbsoluteCCValueMatcher(channel, ccNr));
         return fader;
     }

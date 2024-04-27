@@ -36,13 +36,13 @@ public class RgbButton {
     
     public RgbButton(final int midiId, final String name, final HardwareSurface surface,
         final YaeltexMidiProcessor midiProcessor) {
-        this(0, midiId, name, surface, midiProcessor);
+        this(0, 0, midiId, name, surface, midiProcessor);
     }
     
-    public RgbButton(final int channel, final int midiId, final String name, final HardwareSurface surface,
-        final YaeltexMidiProcessor midiProcessor) {
+    public RgbButton(final int port, final int channel, final int midiId, final String name,
+        final HardwareSurface surface, final YaeltexMidiProcessor midiProcessor) {
         this.midiProcessor = midiProcessor;
-        final MidiIn midiIn = midiProcessor.getMidiIn();
+        final MidiIn midiIn = midiProcessor.getMidiIn(port);
         this.midiId = midiId;
         this.channel = channel;
         light = surface.createMultiStateHardwareLight(name + "_LIGHT_" + midiId);

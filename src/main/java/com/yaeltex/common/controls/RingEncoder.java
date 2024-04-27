@@ -46,19 +46,19 @@ public class RingEncoder {
     
     public RingEncoder(final int channel, final int midiValue, final String name, final HardwareSurface surface,
         final YaeltexMidiProcessor midiProcessor) {
-        this(channel, midiValue, name, surface, midiProcessor, Mode.SIGNED_BIT);
+        this(channel, midiValue, 0, name, surface, midiProcessor, Mode.SIGNED_BIT);
     }
     
     public RingEncoder(final int midiValue, final String name, final HardwareSurface surface,
         final YaeltexMidiProcessor midiProcessor, final Mode mode) {
-        this(0, midiValue, name, surface, midiProcessor, mode);
+        this(0, midiValue, 0, name, surface, midiProcessor, mode);
     }
     
-    public RingEncoder(final int channel, final int midiValue, final String name, final HardwareSurface surface,
-        final YaeltexMidiProcessor midiProcessor, final Mode mode) {
+    public RingEncoder(final int channel, final int midiValue, final int port, final String name,
+        final HardwareSurface surface, final YaeltexMidiProcessor midiProcessor, final Mode mode) {
         super();
         this.midiProcessor = midiProcessor;
-        final MidiIn midiIn = midiProcessor.getMidiIn();
+        final MidiIn midiIn = midiProcessor.getMidiIn(port);
         this.midiValue = midiValue;
         
         final AbsoluteHardwareValueMatcher absoluteMatcher = midiIn.createAbsoluteCCValueMatcher(channel, midiValue);
@@ -76,7 +76,7 @@ public class RingEncoder {
         light = surface.createMultiStateHardwareLight(name + "_LIGHT");
         light.state().onUpdateHardware(this::handleColor);
         encoder.targetValue().addValueObserver(this::handleTargetUpdating);
-        button = new RgbButton(channel, midiValue, name + "_BUTTON", surface, midiProcessor);
+        button = new RgbButton(port, channel, midiValue, name + "_BUTTON", surface, midiProcessor);
     }
     
     public void setBoundToTarget(final boolean boundToTarget) {

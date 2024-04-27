@@ -19,7 +19,7 @@ public class YaeltexMidiProcessor {
     private final ControllerHost host;
     private int blinkCounter;
     
-    public YaeltexMidiProcessor(final ControllerHost host) {
+    public YaeltexMidiProcessor(final ControllerHost host, final int ports) {
         this.host = host;
         this.midiIn = host.getMidiInPort(0);
         this.midiOut = host.getMidiOutPort(0);
@@ -56,7 +56,7 @@ public class YaeltexMidiProcessor {
         timedEvents.add(event);
     }
     
-    public MidiIn getMidiIn() {
+    public MidiIn getMidiIn(final int port) {
         return midiIn;
     }
     

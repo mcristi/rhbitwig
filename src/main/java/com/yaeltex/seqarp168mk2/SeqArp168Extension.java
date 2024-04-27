@@ -43,7 +43,7 @@ public class SeqArp168Extension extends ControllerExtension {
     public void init() {
         debugHost = getHost();
         final Context diContext = new Context(this);
-        final YaeltexMidiProcessor midiProcessor = new YaeltexMidiProcessor(getHost());
+        final YaeltexMidiProcessor midiProcessor = new YaeltexMidiProcessor(getHost(), 0);
         diContext.registerService(YaeltexMidiProcessor.class, midiProcessor);
         mainLayer = diContext.createLayer("MAIN_LAYER");
         surface = diContext.getService(HardwareSurface.class);
