@@ -9,6 +9,7 @@ import com.bitwig.extension.controller.api.MultiStateHardwareLight;
 import com.bitwig.extensions.framework.di.Component;
 import com.yaeltex.common.YaeltexButtonLedState;
 import com.yaeltex.common.YaeltexMidiProcessor;
+import com.yaeltex.common.controls.RgbButton;
 import com.yaeltex.common.controls.RingEncoder;
 
 @Component
@@ -24,8 +25,18 @@ public class HardwareElements {
     private final RingEncoder drumEncoder;
     private final RingEncoder[] decEncoders = new RingEncoder[4];
     private final RingEncoder[] loopEncoders = new RingEncoder[4];
-    private final HardwareSlider[] sliders1 = new HardwareSlider[4];
-    private final HardwareSlider[] sliders2 = new HardwareSlider[4];
+    private final HardwareSlider[] sliders1 = new HardwareSlider[8];
+    private final HardwareSlider[] sliders2 = new HardwareSlider[8];
+    private final RgbButton[] patternButton1 = new RgbButton[16];
+    private final RgbButton[] patternButton2 = new RgbButton[16];
+    private final RgbButton[] selectButton1 = new RgbButton[16];
+    private final RgbButton[] selectButton2 = new RgbButton[16];
+    private final RgbButton[] mainButton1 = new RgbButton[8];
+    private final RgbButton[] mainButton2 = new RgbButton[8];
+    private final AbsoluteHardwareKnob[] smallEncoders1 = new AbsoluteHardwareKnob[16];
+    private final AbsoluteHardwareKnob[] smallEncoders2 = new AbsoluteHardwareKnob[16];
+    private final AbsoluteHardwareKnob[] largeEncoders1 = new AbsoluteHardwareKnob[12];
+    private final AbsoluteHardwareKnob[] largeEncoders2 = new AbsoluteHardwareKnob[12];
     
     public HardwareElements(final ControllerHost host, final HardwareSurface surface,
         final YaeltexMidiProcessor midiProcessor) {
@@ -41,6 +52,28 @@ public class HardwareElements {
         for (int i = 0; i < 8; i++) {
             sliders1[i] = createSliderCc("SILDER_DR_%d".formatted(i + 1), surface, midiProcessor.getMidiIn(0), 40 + i);
             sliders2[i] = createSliderCc("SILDER_SYN_%d".formatted(i + 1), surface, midiProcessor.getMidiIn(1), 40 + i);
+            mainButton1[i] = new RgbButton(0, 0, 0x32 + i, "MAIN_BUTTON_1_%d".formatted(i + 1), surface, midiProcessor);
+            mainButton2[i] = new RgbButton(1, 0, 0x32 + i, "MAIN_BUTTON_2_%d".formatted(i + 1), surface, midiProcessor);
+        }
+        for (int i = 0; i < 16; i++) {
+            patternButton1[i] =
+                new RgbButton(0, 0, 0x14 + i, "PATTERN_BUTTON_1_%d".formatted(i + 1), surface, midiProcessor);
+            patternButton2[i] =
+                new RgbButton(1, 0, 0x14 + i, "PATTERN_BUTTON_2_%d".formatted(i + 1), surface, midiProcessor);
+            selectButton1[i] =
+                new RgbButton(0, 0, 0x28 + i, "SEL_BUTTON_1_%d".formatted(i + 1), surface, midiProcessor);
+            selectButton2[i] =
+                new RgbButton(1, 0, 0x28 + i, "SEL_BUTTON_2_%d".formatted(i + 1), surface, midiProcessor);
+            smallEncoders1[i] =
+                createKnob("SMALL_ENC_1_%d".formatted(i + 1), surface, midiProcessor.getMidiIn(0), 24 + i);
+            smallEncoders2[i] =
+                createKnob("SMALL_ENC_2_%d".formatted(i + 1), surface, midiProcessor.getMidiIn(1), 24 + i);
+        }
+        for (int i = 0; i < 12; i++) {
+            largeEncoders1[i] =
+                createKnob("LARGE_ENC_1_%d".formatted(i + 1), surface, midiProcessor.getMidiIn(0), 12 + i);
+            largeEncoders1[i] =
+                createKnob("LARGE_ENC_2_%d".formatted(i + 1), surface, midiProcessor.getMidiIn(1), 12 + i);
         }
         
         seqLoopEncoder = new RingEncoder(0, 0x8, 0, "SEQ_LOOP", surface, midiProcessor, RingEncoder.Mode.SIGNED_BIT);
