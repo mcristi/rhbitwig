@@ -84,7 +84,7 @@ public class YaeltexButtonLedState extends InternalHardwareLightState {
         super();
         assert offset < 3;
         this.colorCode = color.getValue() + offset;
-        this.color = ColorUtil.getColor(this.colorCode);
+        this.color = ColorUtil.getColor(this.colorCode, 127);
         this.intensity = 127;
     }
     
@@ -92,7 +92,7 @@ public class YaeltexButtonLedState extends InternalHardwareLightState {
         super();
         this.colorCode = colorCode;
         this.intensity = intensity;
-        color = ColorUtil.getColor(this.colorCode);
+        color = ColorUtil.getColor(this.colorCode, intensity);
     }
     
     private YaeltexButtonLedState(final int colorCode) {

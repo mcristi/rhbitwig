@@ -154,8 +154,19 @@ public class ColorUtil {
         {0xf0, 0xf0, 0xf0}
     };
     
-    public static Color getColor(final int index) {
-        return Color.fromRGB255(colorRangeTable[index][0], colorRangeTable[index][1], colorRangeTable[index][2]);
+    public static Color getColor(final int index, final int intensity) {
+        final int r = intensify(colorRangeTable[index][0], intensity);
+        final int g = intensify(colorRangeTable[index][1], intensity);
+        final int b = intensify(colorRangeTable[index][2], intensity);
+        return Color.fromRGB255(r, g, b);
+    }
+    
+    private static int intensify(final int value, final int intensity) {
+        if (intensity == 127) {
+            return value;
+        }
+        final double factor = 0.4 + 0.6 * (1.0 / intensity);
+        return (int) Math.round(value * factor);
     }
     
     private static int restrict(final int value) {
