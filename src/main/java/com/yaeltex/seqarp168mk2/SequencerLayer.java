@@ -1,9 +1,7 @@
-package com.yaeltex.seqarp168mk2.sequencer;
+package com.yaeltex.seqarp168mk2;
 
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.bitwig.extension.controller.api.ClipLauncherSlot;
@@ -13,69 +11,44 @@ import com.bitwig.extension.controller.api.DrumPad;
 import com.bitwig.extension.controller.api.DrumPadBank;
 import com.bitwig.extension.controller.api.InternalHardwareLightState;
 import com.bitwig.extension.controller.api.NoteStep;
-import com.bitwig.extension.controller.api.PinnableCursorClip;
 import com.bitwig.extension.controller.api.PlayingNote;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.Layers;
 import com.bitwig.extensions.framework.di.Component;
 import com.bitwig.extensions.framework.values.IntValueObject;
-import com.bitwig.extensions.framework.values.StepViewPosition;
 import com.yaeltex.common.YaelTexColors;
 import com.yaeltex.common.YaeltexButtonLedState;
 import com.yaeltex.common.YaeltexMidiProcessor;
 import com.yaeltex.common.controls.RgbButton;
 import com.yaeltex.common.controls.RingEncoder;
-import com.yaeltex.seqarp168mk2.BitwigViewControl;
-import com.yaeltex.seqarp168mk2.SeqArpHardwareElements;
+import com.yaeltex.common.sequencing.AbstractSequencerLayer;
 
 @Component
-public class SequencerLayer extends Layer {
+public class SequencerLayer extends AbstractSequencerLayer {
     
     private static final YaeltexButtonLedState playColor = YaeltexButtonLedState.of(YaelTexColors.VIOLET_RED, 2);
     private static final YaeltexButtonLedState muteColor = YaeltexButtonLedState.of(120);
-    private static final double STD_CHANCE = 0.5;
     
     private final BitwigViewControl viewControl;
     
     private final boolean[] notesPlaying = new boolean[16];
     
-    private final YaeltexButtonLedState[] padColors = new YaeltexButtonLedState[16];
-    private final YaeltexButtonLedState[] padColorsAlt = new YaeltexButtonLedState[16];
-    private final YaeltexButtonLedState[] slotColors = new YaeltexButtonLedState[8];
-    
     private YaeltexButtonLedState trackColor;
     private int noteOffset = 0;
-    private int selectedPadIndex = -1;
-    private final YaeltexMidiProcessor midiProcessor;
-    private final PinnableCursorClip clip;
-    private final NoteStep[] assignments = new NoteStep[32];
-    private final Set<Integer> addedSteps = new HashSet<>();
-    private final Set<Integer> modifiedSteps = new HashSet<>();
-    private int playingStep;
     private boolean markIgnoreOrigLen = false;
-    private final double gatePercent = 0.98;
-    private final StepViewPosition positionHandler;
     private final int nonAccentVelocity = 75;
-    private final NotesState operatorNoteState;
     private final IntValueObject accentValue = new IntValueObject(127, 0, 127);
     private final Layer seqButtonLayer;
     private final Layer seqLengthLayer;
     private boolean accentHeld;
     private boolean copyHeld;
-    private NoteStep copyNote;
     private boolean randomHeld;
     private boolean muteState;
-    private final CursorTrack cursorTrack;
     
     public SequencerLayer(final Layers layers, final SeqArpHardwareElements hwElements,
         final BitwigViewControl viewControl, final YaeltexMidiProcessor midiProcessor) {
-        super(layers, "SEQUENCER_LAYER");
+        super(layers, midiProcessor, viewControl.getCursorClip(), 16, 32, 8);
         this.viewControl = viewControl;
-        this.midiProcessor = midiProcessor;
-        this.clip = viewControl.getCursorClip();
-        positionHandler = new StepViewPosition(clip, 32, "YAELTEX");
-        this.operatorNoteState = new NotesState(assignments, positionHandler, midiProcessor);
-        cursorTrack = viewControl.getDrumCursorTrack();
         
         this.seqButtonLayer = new Layer(layers, "SEQ_BUTTON_LAYER");
         this.seqLengthLayer = new Layer(layers, "SEQ_LENGTH_LAYER");
@@ -179,17 +152,6 @@ public class SequencerLayer extends Layer {
     
     public void toggleShuffle() {
         clip.getShuffle().toggle();
-    }
-    
-    private void setStepLength(final int index) {
-        positionHandler.setSteps(index);
-    }
-    
-    private YaeltexButtonLedState getStepLength(final int index) {
-        if (index < positionHandler.getSteps()) {
-            return YaeltexButtonLedState.BLUE;
-        }
-        return YaeltexButtonLedState.OFF;
     }
     
     private void bindOperators(final SeqArpHardwareElements hwElements) {
@@ -360,15 +322,6 @@ public class SequencerLayer extends Layer {
         }
     }
     
-    private void prepareSlot(final int index, final ClipLauncherSlot slot) {
-        slot.exists().markInterested();
-        slot.isPlaying().markInterested();
-        slot.hasContent().markInterested();
-        slot.isPlaybackQueued().markInterested();
-        slot.isStopQueued().markInterested();
-        slot.color().addValueObserver((r, g, b) -> slotColors[index] = YaeltexButtonLedState.of(r, g, b));
-    }
-    
     private InternalHardwareLightState getSlotColor(final int index, final ClipLauncherSlot slot) {
         if (slot.hasContent().get()) {
             if (slot.isPlaybackQueued().get()) {
@@ -443,48 +396,8 @@ public class SequencerLayer extends Layer {
         }
     }
     
-    private void handleRandomAction(final int index, final NoteStep note) {
-        if (note == null) {
-            return;
-        }
-        if (note.chance() < 1.0) {
-            note.setChance(1.0);
-        } else {
-            note.setChance(STD_CHANCE);
-        }
-    }
-    
-    private void handleNoteCopyAction(final int index, final NoteStep note) {
-        if (copyNote != null) {
-            if (index == copyNote.x()) {
-                return;
-            }
-            final int vel = (int) Math.round(copyNote.velocity() * 127);
-            final double duration = copyNote.duration();
-            operatorNoteState.registerChanges(index, copyNote);
-            clip.setStep(index, 0, vel, duration);
-        } else if (note != null && note.state() == NoteStep.State.NoteOn) {
-            copyNote = note;
-        }
-    }
-    
-    
-    private static boolean isSettableSlot(final NoteStep note) {
-        return note == null || note.state() == NoteStep.State.Empty || note.state() == NoteStep.State.NoteSustain;
-    }
-    
-    private void removeNote(final int index, final NoteStep note) {
-        if (note != null && note.state() == NoteStep.State.NoteOn && !addedSteps.contains(index)) {
-            if (!modifiedSteps.contains(index)) {
-                this.clip.toggleStep(index, 0, getVelocity());
-            } else {
-                modifiedSteps.remove(index);
-            }
-        }
-        addedSteps.remove(index);
-    }
-    
-    private int getVelocity() {
+    @Override
+    protected int getVelocity() {
         return accentHeld ? accentValue.get() : nonAccentVelocity;
     }
     

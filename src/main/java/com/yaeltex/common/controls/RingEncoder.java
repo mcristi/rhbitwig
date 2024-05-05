@@ -15,14 +15,12 @@ import com.bitwig.extension.controller.api.RelativeHardwareKnob;
 import com.bitwig.extension.controller.api.SettableRangedValue;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.values.IntValueObject;
-import com.bitwig.extensions.framework.values.Midi;
 import com.yaeltex.common.YaelTexColors;
 import com.yaeltex.common.YaeltexButtonLedState;
 import com.yaeltex.common.YaeltexMidiProcessor;
 import com.yaeltex.common.bindings.EncoderIncrementBinding;
 import com.yaeltex.common.bindings.EncoderParameterBinding;
 import com.yaeltex.common.bindings.EncoderParameterValueBinding;
-import com.yaeltex.seqarp168mk2.SeqArp168Extension;
 import com.yaeltex.seqarp168mk2.bindings.EncoderBaseValueBinding;
 import com.yaeltex.seqarp168mk2.bindings.EncoderOffsetValueBinding;
 import com.yaeltex.seqarp168mk2.device.NoteControlValue;
@@ -34,6 +32,7 @@ public class RingEncoder {
     private int lastColorSent = -1;
     private final int lastIntensityValueSent = 127;
     private final int midiValue;
+    private final int midiPort;
     private final RgbButton button;
     private final MultiStateHardwareLight light;
     private boolean boundToTarget = false;
@@ -57,6 +56,7 @@ public class RingEncoder {
     public RingEncoder(final int channel, final int midiValue, final int port, final String name,
         final HardwareSurface surface, final YaeltexMidiProcessor midiProcessor, final Mode mode) {
         super();
+        this.midiPort = port;
         this.midiProcessor = midiProcessor;
         final MidiIn midiIn = midiProcessor.getMidiIn(port);
         this.midiValue = midiValue;
@@ -170,28 +170,25 @@ public class RingEncoder {
     
     public void updateValue(final int value) {
         if (value != lastValueSent) {
-            midiProcessor.sendMidi(Midi.CC, midiValue, value);
+            midiProcessor.sendCcValue(midiPort, midiValue, value);
             lastValueSent = value;
         }
     }
     
     public void setColor(final int value) {
         if (value != lastColorSent) {
-            midiProcessor.sendMidi(Midi.CC | 15, midiValue, value);
+            midiProcessor.sendCcColor(midiPort, midiValue, value, 127);
             lastColorSent = value;
         }
     }
     
     public void refresh() {
-        midiProcessor.sendMidi(Midi.CC, midiValue, lastValueSent);
-        midiProcessor.sendMidi(Midi.CC | 15, midiValue, lastColorSent);
+        midiProcessor.sendCcValue(midiPort, midiValue, lastValueSent);
+        midiProcessor.sendCcColor(midiPort, midiValue, lastColorSent, 127);
     }
     
     public void clear() {
-        if (midiValue == 4) {
-            SeqArp168Extension.println("Target=> <%d> clear", midiValue);
-        }
-        midiProcessor.sendMidi(Midi.CC, midiValue, 0);
+        midiProcessor.sendCcValue(midiPort, midiValue, 0);
     }
     
     public void setBounds(final double xMM, final double yMm, final double size) {

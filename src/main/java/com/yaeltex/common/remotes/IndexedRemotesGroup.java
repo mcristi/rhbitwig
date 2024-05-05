@@ -1,11 +1,10 @@
-package com.yaeltex.seqarp168mk2.device;
+package com.yaeltex.common.remotes;
 
 import java.util.List;
 import java.util.function.Function;
 
 import com.bitwig.extension.controller.api.CursorRemoteControlsPage;
 import com.bitwig.extensions.framework.values.IntValueObject;
-import com.yaeltex.seqarp168mk2.SeqArp168Extension;
 
 public class IndexedRemotesGroup extends RemotesGroup {
     
@@ -23,7 +22,6 @@ public class IndexedRemotesGroup extends RemotesGroup {
             final int index = i;
             final IntValueObject indexValue = indexes.get(i);
             indexValue.addValueObserver((oldValue, newValue) -> {
-                SeqArp168Extension.println(" Change %d => %d -> %d", index, newValue, indexValue.get());
                 applyChanges();
             });
         }

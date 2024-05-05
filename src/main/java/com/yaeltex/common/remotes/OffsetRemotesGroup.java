@@ -1,4 +1,4 @@
-package com.yaeltex.seqarp168mk2.device;
+package com.yaeltex.common.remotes;
 
 import java.util.function.Function;
 

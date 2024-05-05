@@ -65,8 +65,9 @@ public class DjControllerExtensionDefinition extends ControllerExtensionDefiniti
     
     @Override
     public void listAutoDetectionMidiPortNames(final AutoDetectionMidiPortNamesList list,
-        final PlatformType platformType) {
-        list.add(new String[] {"DJCONTROLLER", "DJCONTROLLER2"}, new String[] {"DJCONTROLLER", "DJCONTROLLER2"});
+        final PlatformType platformType) { // SSL V-MIDI Port 1
+        list.add(new String[] {"RHDJ 1", "RHDJ 2"}, new String[] {"RHDJ 1", "RHDJ 2"});
+        //list.add(new String[] {"RHDJ 1", "SSL V-MIDI Port 1"}, new String[] {"RHDJ 1", "SSL V-MIDI Port 1"});
     }
     
     @Override

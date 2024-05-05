@@ -5,7 +5,6 @@ import com.bitwig.extensions.framework.values.ValueObject;
 import com.yaeltex.common.bindings.EncoderTriggerBinding;
 import com.yaeltex.common.controls.RingEncoder;
 import com.yaeltex.seqarp168mk2.BitwigViewControl;
-import com.yaeltex.seqarp168mk2.SeqArp168Extension;
 import com.yaeltex.seqarp168mk2.SeqArpHardwareElements;
 import com.yaeltex.seqarp168mk2.device.FocusDevice;
 
@@ -64,7 +63,6 @@ public class Encoder2x8StepConfig extends DeviceConfig {
     
     private void setEncoderMode(final StepEncoderMode mode) {
         this.stepEncoderMode = mode;
-        SeqArp168Extension.println(" Enc Mode = %s", mode);
         updateLayers();
     }
     

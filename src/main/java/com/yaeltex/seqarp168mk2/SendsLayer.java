@@ -102,6 +102,5 @@ public class SendsLayer extends Layer {
     @Override
     protected void onActivate() {
         super.onActivate();
-        SeqArp168Extension.println(" Activated SENDS");
     }
 }

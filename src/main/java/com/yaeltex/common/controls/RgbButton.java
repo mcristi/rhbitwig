@@ -17,9 +17,7 @@ import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.time.TimeRepeatEvent;
 import com.bitwig.extensions.framework.time.TimedDelayEvent;
 import com.bitwig.extensions.framework.time.TimedEvent;
-import com.bitwig.extensions.framework.values.Midi;
 import com.yaeltex.common.YaeltexButtonLedState;
-import com.yaeltex.common.YaeltexIntensityColorState;
 import com.yaeltex.common.YaeltexMidiProcessor;
 
 public class RgbButton {
@@ -33,6 +31,7 @@ public class RgbButton {
     protected HardwareButton hwButton;
     protected YaeltexMidiProcessor midiProcessor;
     protected final int midiId;
+    protected final int midiPort;
     
     public RgbButton(final int midiId, final String name, final HardwareSurface surface,
         final YaeltexMidiProcessor midiProcessor) {
@@ -42,6 +41,7 @@ public class RgbButton {
     public RgbButton(final int port, final int channel, final int midiId, final String name,
         final HardwareSurface surface, final YaeltexMidiProcessor midiProcessor) {
         this.midiProcessor = midiProcessor;
+        this.midiPort = port;
         final MidiIn midiIn = midiProcessor.getMidiIn(port);
         this.midiId = midiId;
         this.channel = channel;
@@ -57,13 +57,9 @@ public class RgbButton {
     
     private void updateState(final InternalHardwareLightState internalHardwareLightState) {
         if (internalHardwareLightState instanceof YaeltexButtonLedState state) {
-            midiProcessor.sendMidi(Midi.NOTE_ON | channel, midiId, state.getColorCode());
-            //midiProcessor.sendMidi(Midi.NOTE_ON | 0x15, midiId, 1);
-        } else if (internalHardwareLightState instanceof YaeltexIntensityColorState state) {
-            midiProcessor.sendMidi(Midi.NOTE_ON | channel, midiId, state.getColorCode());
-            midiProcessor.sendMidi(Midi.NOTE_ON | 0x14, midiId, state.getIntensity());
+            midiProcessor.sendNoteColor(midiPort, channel, midiId, state);
         } else {
-            midiProcessor.sendMidi(Midi.NOTE_ON, midiId, 0);
+            midiProcessor.sendColorOff(midiPort, channel, midiId);
         }
     }
     
@@ -105,12 +101,31 @@ public class RgbButton {
         layer.bindLightState(() -> parameter.value().get() == 0 ? YaeltexButtonLedState.OFF : color, light);
     }
     
+    public void bindMomentaryValue(final Layer layer, final Parameter parameter, final YaeltexButtonLedState color) {
+        bindMomentaryValue(layer, parameter);
+        layer.bindLightState(() -> parameter.value().get() == 0 ? YaeltexButtonLedState.OFF : color, light);
+    }
+    
     public void bindToggleValue(final Layer layer, final Parameter parameter) {
         parameter.value().markInterested();
         layer.bindPressed(hwButton, () -> {
             if (parameter.value().get() < 1) {
                 parameter.value().set(1);
             } else {
+                parameter.value().set(0);
+            }
+        });
+    }
+    
+    public void bindMomentaryValue(final Layer layer, final Parameter parameter) {
+        parameter.value().markInterested();
+        layer.bindPressed(hwButton, () -> {
+            if (parameter.value().get() < 1) {
+                parameter.value().set(1);
+            }
+        });
+        layer.bindReleased(hwButton, () -> {
+            if (parameter.value().get() > 0) {
                 parameter.value().set(0);
             }
         });

@@ -23,7 +23,7 @@ import com.yaeltex.common.YaeltexMidiProcessor;
 import com.yaeltex.common.bindings.EncoderParameterBankBinding;
 import com.yaeltex.common.controls.RgbButton;
 import com.yaeltex.common.controls.RingEncoder;
-import com.yaeltex.seqarp168mk2.device.IndexedRemotesGroup;
+import com.yaeltex.common.remotes.IndexedRemotesGroup;
 
 @Component
 public class PerformanceLayer extends Layer {

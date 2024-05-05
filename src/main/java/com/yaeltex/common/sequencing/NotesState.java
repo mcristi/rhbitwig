@@ -1,4 +1,4 @@
-package com.yaeltex.seqarp168mk2.sequencer;
+package com.yaeltex.common.sequencing;
 
 import java.util.Arrays;
 import java.util.HashMap;

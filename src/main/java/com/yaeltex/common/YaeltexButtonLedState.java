@@ -1,14 +1,17 @@
 package com.yaeltex.common;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.bitwig.extension.api.Color;
 import com.bitwig.extension.controller.api.HardwareLightVisualState;
 import com.bitwig.extension.controller.api.InternalHardwareLightState;
 
 public class YaeltexButtonLedState extends InternalHardwareLightState {
     
+    private static final Map<Integer, YaeltexButtonLedState> cache = new HashMap<>();
+    
     private static final YaeltexButtonLedState[] colorMap = new YaeltexButtonLedState[128];
-    private final int colorCode;
-    private final Color color;
     public static final YaeltexButtonLedState OFF = new YaeltexButtonLedState(YaelTexColors.OFF);
     public static final YaeltexButtonLedState RED = new YaeltexButtonLedState(YaelTexColors.RED);
     public static final YaeltexButtonLedState RED_DIM = new YaeltexButtonLedState(YaelTexColors.RED, 2);
@@ -19,14 +22,19 @@ public class YaeltexButtonLedState extends InternalHardwareLightState {
     public static final YaeltexButtonLedState PURPLE = new YaeltexButtonLedState(YaelTexColors.PURPLE);
     public static final YaeltexButtonLedState DARK_ORANGE = new YaeltexButtonLedState(YaelTexColors.DARK_ORANGE);
     public static final YaeltexButtonLedState ORANGE = new YaeltexButtonLedState(YaelTexColors.ORANGE);
-    public static final YaeltexButtonLedState ORANGE_DIM = new YaeltexButtonLedState(YaelTexColors.ORANGE, 1);
+    public static final YaeltexButtonLedState ORANGE_DIM =
+        new YaeltexButtonLedState(YaelTexColors.ORANGE).intensity(50);
     public static final YaeltexButtonLedState YELLOW = new YaeltexButtonLedState(YaelTexColors.YELLOW);
     public static final YaeltexButtonLedState YELLOW_BRIGHT = new YaeltexButtonLedState(YaelTexColors.BRIGHT_YELLOW, 2);
     public static final YaeltexButtonLedState YELLOW_DIM = new YaeltexButtonLedState(YaelTexColors.BRIGHT_YELLOW, 2);
     public static final YaeltexButtonLedState GREEN = new YaeltexButtonLedState(YaelTexColors.GREEN, 0);
-    public static final YaeltexButtonLedState GREEN_DIM = new YaeltexButtonLedState(YaelTexColors.GREEN, 2);
+    public static final YaeltexButtonLedState GREEN_DIM = new YaeltexButtonLedState(YaelTexColors.GREEN).intensity(20);
     public static final YaeltexButtonLedState DEEP_GREEN = new YaeltexButtonLedState(YaelTexColors.DEEP_GREEN, 0);
     public static final YaeltexButtonLedState WHITE = new YaeltexButtonLedState(YaelTexColors.WHITE, 0);
+    
+    private final int colorCode;
+    private final int intensity;
+    private final Color color;
     
     public static YaeltexButtonLedState of(final int index) {
         assert index < 128;
@@ -77,16 +85,31 @@ public class YaeltexButtonLedState extends InternalHardwareLightState {
         assert offset < 3;
         this.colorCode = color.getValue() + offset;
         this.color = ColorUtil.getColor(this.colorCode);
+        this.intensity = 127;
+    }
+    
+    private YaeltexButtonLedState(final int colorCode, final int intensity) {
+        super();
+        this.colorCode = colorCode;
+        this.intensity = intensity;
+        color = ColorUtil.getColor(this.colorCode);
     }
     
     private YaeltexButtonLedState(final int colorCode) {
-        super();
-        this.colorCode = colorCode;
-        color = ColorUtil.getColor(this.colorCode);
+        this(colorCode, 127);
+    }
+    
+    public YaeltexButtonLedState intensity(final int intensity) {
+        final int lookup = this.colorCode << 7 | intensity;
+        return cache.computeIfAbsent(lookup, key -> new YaeltexButtonLedState(this.colorCode, intensity));
     }
     
     public int getColorCode() {
         return colorCode;
+    }
+    
+    public int getIntensity() {
+        return intensity;
     }
     
     @Override
@@ -109,7 +132,7 @@ public class YaeltexButtonLedState extends InternalHardwareLightState {
             return true;
         }
         
-        return colorCode == obj.colorCode;
+        return colorCode == obj.colorCode && intensity == obj.intensity;
     }
     
 }

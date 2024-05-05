@@ -12,7 +12,7 @@ import com.bitwig.extensions.framework.values.BooleanValueObject;
 import com.yaeltex.common.YaeltexButtonLedState;
 import com.yaeltex.common.bindings.EncoderParameterBankBinding;
 import com.yaeltex.common.controls.RingEncoder;
-import com.yaeltex.seqarp168mk2.device.OffsetRemotesGroup;
+import com.yaeltex.common.remotes.OffsetRemotesGroup;
 
 @Component
 public class RemotesLayer extends Layer {

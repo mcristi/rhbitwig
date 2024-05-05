@@ -7,32 +7,45 @@ import java.util.function.IntConsumer;
 import com.bitwig.extension.controller.api.ControllerHost;
 import com.bitwig.extension.controller.api.MidiIn;
 import com.bitwig.extension.controller.api.MidiOut;
-import com.bitwig.extension.controller.api.NoteInput;
 import com.bitwig.extension.controller.api.RelativeHardwarControlBindable;
 import com.bitwig.extensions.framework.time.TimedEvent;
-import com.yaeltex.fuse.FuseExtension;
+import com.bitwig.extensions.framework.values.Midi;
 
 public class YaeltexMidiProcessor {
-    private final MidiIn midiIn;
-    private final MidiOut midiOut;
     private final Queue<TimedEvent> timedEvents = new ConcurrentLinkedQueue<>();
     private final ControllerHost host;
     private int blinkCounter;
     
     public YaeltexMidiProcessor(final ControllerHost host, final int ports) {
         this.host = host;
-        this.midiIn = host.getMidiInPort(0);
-        this.midiOut = host.getMidiOutPort(0);
+        final MidiIn midiIn = host.getMidiInPort(0);
         midiIn.setMidiCallback(this::handleMidiIn);
         midiIn.setSysexCallback(this::handleSysEx);
+        if (ports == 2) {
+            host.getMidiInPort(1).setMidiCallback(this::handleMidiIn2);
+        }
     }
     
-    public NoteInput createNoteInput(final String name, final String... mask) {
-        return midiIn.createNoteInput(name, mask);
+    public void sendCcValue(final int port, final int ccNr, final int value) {
+        final MidiOut midiOut = host.getMidiOutPort(port);
+        midiOut.sendMidi(Midi.CC, ccNr, value);
     }
     
-    public void sendMidi(final int status, final int val1, final int val2) {
-        midiOut.sendMidi(status, val1, val2);
+    public void sendCcColor(final int port, final int ccNr, final int color, final int intensity) {
+        final MidiOut midiOut = host.getMidiOutPort(port);
+        midiOut.sendMidi(Midi.CC | 0xF, ccNr, color);
+        midiOut.sendMidi(Midi.CC | 0xE, ccNr, intensity);
+    }
+    
+    public void sendNoteColor(final int port, final int channel, final int noteNr, final YaeltexButtonLedState color) {
+        final MidiOut midiOut = host.getMidiOutPort(port);
+        midiOut.sendMidi(Midi.NOTE_ON | channel, noteNr, color.getColorCode());
+        midiOut.sendMidi(Midi.NOTE_ON | 0xE, noteNr, color.getIntensity());
+    }
+    
+    public void sendColorOff(final int midiPort, final int channel, final int midiId) {
+        final MidiOut midiOut = host.getMidiOutPort(midiPort);
+        midiOut.sendMidi(Midi.NOTE_ON | channel, midiId, 0);
     }
     
     public void start() {
@@ -57,15 +70,19 @@ public class YaeltexMidiProcessor {
     }
     
     public MidiIn getMidiIn(final int port) {
-        return midiIn;
+        return host.getMidiInPort(port);
     }
     
     private void handleMidiIn(final int status, final int data1, final int data2) {
-        FuseExtension.println("MIDI => %02X %02X %02X", status, data1, data2);
+        host.println("MIDI 1 => %02X %02X %02X".formatted(status, data1, data2));
+    }
+    
+    private void handleMidiIn2(final int status, final int data1, final int data2) {
+        host.println("MIDI 2 => %02X %02X %02X".formatted(status, data1, data2));
     }
     
     protected void handleSysEx(final String sysExString) {
-        FuseExtension.println("SysEx = %s", sysExString);
+        host.println("SysEx = %s".formatted(sysExString));
     }
     
     public RelativeHardwarControlBindable createIncrementBinder(final IntConsumer consumer) {
@@ -104,4 +121,6 @@ public class YaeltexMidiProcessor {
     public void delayAction(final Runnable action, final int time) {
         host.scheduleTask(action, time);
     }
+    
+    
 }

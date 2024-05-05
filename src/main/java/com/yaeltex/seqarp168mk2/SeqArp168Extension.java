@@ -6,19 +6,17 @@ import com.bitwig.extension.controller.api.HardwareSurface;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.di.Context;
 import com.yaeltex.common.YaeltexButtonLedState;
-import com.yaeltex.common.YaeltexIntensityColorState;
 import com.yaeltex.common.YaeltexMidiProcessor;
 import com.yaeltex.common.controls.RgbButton;
 import com.yaeltex.seqarp168mk2.arpcontrol.ArpButtonMode;
 import com.yaeltex.seqarp168mk2.arpcontrol.ArpControlLayer;
-import com.yaeltex.seqarp168mk2.sequencer.SequencerLayer;
 
 public class SeqArp168Extension extends ControllerExtension {
     
     private static ControllerHost debugHost;
     private Layer mainLayer;
     private HardwareSurface surface;
-    private final YaeltexIntensityColorState cursorColor = new YaeltexIntensityColorState(12, 127);
+    private final YaeltexButtonLedState cursorColor = YaeltexButtonLedState.of(12);
     private Mode mode = Mode.ARP;
     private boolean optHeld;
     private boolean buttonCombinationOccurred;
