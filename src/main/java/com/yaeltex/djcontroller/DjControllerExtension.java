@@ -89,7 +89,7 @@ public class DjControllerExtension extends ControllerExtension {
         
         final RgbButton holdPspButton = hwElements.getBottomEncoders2()[0].getButton();
         final RemoteControl holdParameter = projectGroup.getRemotes(10).getParameter(0);
-        holdPspButton.bindMomentaryValue(mainLayer, holdParameter, YaeltexButtonLedState.RED);
+        holdPspButton.bindToggleValue(mainLayer, holdParameter, YaeltexButtonLedState.RED);
     }
     
     private void bindControls(final AbsoluteHardwareControl[] controls, final int page, final int controlOffset) {

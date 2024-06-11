@@ -134,8 +134,8 @@ public class SequencerLayer extends AbstractSequencerLayer {
         final RgbButton[] selectButtons = hwElements.getSelectButtons1();
         for (int i = 0; i < drumPadBank.getSizeOfBank(); i++) {
             final int index = i;
-            final RgbButton muteButton = selectButtons[i];
-            final RgbButton selectButton = selectButtons[8 + i];
+            final RgbButton muteButton = selectButtons[8 + i];
+            final RgbButton selectButton = selectButtons[i];
             final DrumPad drumPad = drumPadBank.getItemAt(i);
             drumPad.color().addValueObserver((r, g, b) -> {
                 padColors[index] = YaeltexButtonLedState.of(r, g, b);
@@ -201,7 +201,7 @@ public class SequencerLayer extends AbstractSequencerLayer {
         button.bindPressed(this, this::toggleNoteRepeat);
         button.bindLight(this, () -> noteRepeatEnabled ? YaeltexButtonLedState.BLUE : YaeltexButtonLedState.OFF);
         this.addBinding(
-            new EncoderIntShortRangeBinding(noteRepeatEncoder, selectedArpIndex, 4, ARP_INDICATOR_MAPPINGS));
+            new EncoderIntShortRangeBinding(noteRepeatEncoder, selectedArpIndex, 0, ARP_INDICATOR_MAPPINGS));
         selectedArpIndex.addValueObserver(arpIndex -> arp.rate().set(ARP_RATES[arpIndex]));
         noteRepeatEncoder.bindLight(this, () -> YaeltexButtonLedState.BLUE);
     }
