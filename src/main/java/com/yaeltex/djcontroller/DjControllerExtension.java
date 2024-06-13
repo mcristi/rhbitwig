@@ -1,5 +1,9 @@
 package com.yaeltex.djcontroller;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.concurrent.Executors;
+
 import com.bitwig.extension.controller.ControllerExtension;
 import com.bitwig.extension.controller.api.AbsoluteHardwareControl;
 import com.bitwig.extension.controller.api.ControllerHost;
@@ -7,12 +11,19 @@ import com.bitwig.extension.controller.api.CursorRemoteControlsPage;
 import com.bitwig.extension.controller.api.DrumPad;
 import com.bitwig.extension.controller.api.DrumPadBank;
 import com.bitwig.extension.controller.api.HardwareSurface;
+import com.bitwig.extension.controller.api.Preferences;
 import com.bitwig.extension.controller.api.RemoteControl;
 import com.bitwig.extension.controller.api.Send;
+import com.bitwig.extension.controller.api.SettableBooleanValue;
+import com.bitwig.extension.controller.api.SettableRangedValue;
+import com.bitwig.extension.controller.api.SettableStringValue;
 import com.bitwig.extension.controller.api.Track;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.di.Context;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
+import com.rhcommons.HttpJsonHandler;
+import com.rhcommons.TraktorState;
+import com.sun.net.httpserver.HttpServer;
 import com.yaeltex.common.YaeltexButtonLedState;
 import com.yaeltex.common.YaeltexMidiProcessor;
 import com.yaeltex.common.bindings.EncoderParameterBankBinding;
@@ -21,6 +32,8 @@ import com.yaeltex.common.controls.RingEncoder;
 import com.yaeltex.common.remotes.OffsetRemotesGroup;
 
 public class DjControllerExtension extends ControllerExtension {
+    
+    public static final String TRAKTOR_CONTROL_LABEL = "Traktor Http Control";
     
     public static final YaeltexButtonLedState[] PARAM_COLORS = {
         YaeltexButtonLedState.RED,
@@ -37,6 +50,8 @@ public class DjControllerExtension extends ControllerExtension {
     private HardwareSurface surface;
     private OffsetRemotesGroup projectGroup;
     private SequencerLayer sequencerLayer;
+    private final TraktorState traktorState = new TraktorState();
+    private HttpServer server;
     
     public static void println(final String format, final Object... args) {
         if (debugHost != null) {
@@ -67,6 +82,7 @@ public class DjControllerExtension extends ControllerExtension {
         mainLayer.activate();
         sequencerLayer.activate();
         diContext.activate();
+        initServers();
         midiProcessor.start();
     }
     
@@ -128,11 +144,31 @@ public class DjControllerExtension extends ControllerExtension {
             final RgbButton button = encoder.getButton();
             button.bindToggleValue(mainLayer, pushParameter, PARAM_COLORS[i + 4]);
         }
-        
+    }
+    
+    private void initServers() {
+        final Preferences preferences = getHost().getPreferences();
+        final SettableBooleanValue active = preferences.getBooleanSetting("Active", TRAKTOR_CONTROL_LABEL, false);
+        final SettableStringValue hostValue =
+            preferences.getStringSetting("Host", TRAKTOR_CONTROL_LABEL, 15, "127.0.0.1");
+        final SettableRangedValue portValue =
+            preferences.getNumberSetting("Port", TRAKTOR_CONTROL_LABEL, 2000.0, 6000.0, 1, "", 3000);
+        if (active.get()) {
+            final int port = (int) portValue.getRaw();
+            try {
+                server = HttpServer.create(new InetSocketAddress(hostValue.get(), port), 0);
+                server.createContext("/", new HttpJsonHandler(traktorState));
+                server.setExecutor(Executors.newSingleThreadExecutor());
+                server.start();
+                println(" Http Server on port %d", port);
+            }
+            catch (final IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
     
     public void exit() {
-        
     }
     
     @Override

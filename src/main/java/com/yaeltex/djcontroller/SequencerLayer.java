@@ -33,7 +33,7 @@ public class SequencerLayer extends AbstractSequencerLayer {
     
     private final boolean[] notesPlaying = new boolean[16];
     private final Integer[] notesToDrumTable = new Integer[128];
-    private static final int[] PAD_NOTES = new int[] {32, 33, 34, 35, 36, 37, 38, 39};
+    private static final int[] PAD_NOTES = new int[] {24, 25, 26, 27, 28, 29, 30, 31};
     
     private static final int[] ARP_INDICATOR_MAPPINGS = new int[] {10, 64, 127};
     private static final double[] ARP_RATES = new double[] {0.5, 0.25, 0.125};
@@ -247,10 +247,9 @@ public class SequencerLayer extends AbstractSequencerLayer {
     
     private void enableNotePlay() {
         for (int i = 0; i < 8; i++) {
-            final int padnote = PAD_NOTES[i];
             final int noteToPadIndex = noteOffset + i;
             if (noteToPadIndex < 128) {
-                notesToDrumTable[padnote] = noteToPadIndex;
+                notesToDrumTable[PAD_NOTES[i]] = noteToPadIndex;
             }
         }
         noteInput.setKeyTranslationTable(notesToDrumTable);

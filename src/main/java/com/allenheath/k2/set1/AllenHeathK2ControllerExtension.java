@@ -1,26 +1,41 @@
 package com.allenheath.k2.set1;
 
-import com.bitwig.extension.api.opensoundcontrol.OscAddressSpace;
-import com.bitwig.extension.api.opensoundcontrol.OscConnection;
-import com.bitwig.extension.api.opensoundcontrol.OscMessage;
-import com.bitwig.extension.api.opensoundcontrol.OscModule;
-import com.bitwig.extension.controller.ControllerExtension;
-import com.bitwig.extension.controller.ControllerExtensionDefinition;
-import com.bitwig.extension.controller.api.*;
-import com.bitwig.extensions.framework.Layer;
-import com.bitwig.extensions.framework.Layers;
-import com.rhcommons.SpecialVst3Devices;
-import com.rhcommons.SpecialVstDevices;
-import com.sun.net.httpserver.HttpServer;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 
-public class AllenHeathK2ControllerExtension extends ControllerExtension {
+import com.bitwig.extension.api.opensoundcontrol.OscAddressSpace;
+import com.bitwig.extension.api.opensoundcontrol.OscConnection;
+import com.bitwig.extension.api.opensoundcontrol.OscMessage;
+import com.bitwig.extension.api.opensoundcontrol.OscModule;
+import com.bitwig.extension.controller.ControllerExtension;
+import com.bitwig.extension.controller.ControllerExtensionDefinition;
+import com.bitwig.extension.controller.api.ControllerHost;
+import com.bitwig.extension.controller.api.DocumentState;
+import com.bitwig.extension.controller.api.HardwareButton;
+import com.bitwig.extension.controller.api.HardwareSlider;
+import com.bitwig.extension.controller.api.HardwareSurface;
+import com.bitwig.extension.controller.api.MidiIn;
+import com.bitwig.extension.controller.api.MidiOut;
+import com.bitwig.extension.controller.api.NoteInput;
+import com.bitwig.extension.controller.api.Preferences;
+import com.bitwig.extension.controller.api.SettableBooleanValue;
+import com.bitwig.extension.controller.api.SettableEnumValue;
+import com.bitwig.extension.controller.api.SettableRangedValue;
+import com.bitwig.extension.controller.api.SettableStringValue;
+import com.bitwig.extension.controller.api.Signal;
+import com.bitwig.extensions.framework.Layer;
+import com.bitwig.extensions.framework.Layers;
+import com.rhcommons.HttpJsonHandler;
+import com.rhcommons.SpecialVst3Devices;
+import com.rhcommons.SpecialVstDevices;
+import com.rhcommons.TraktorState;
+import com.sun.net.httpserver.HttpServer;
 
+public class AllenHeathK2ControllerExtension extends ControllerExtension {
+    
     private static final String[] DEFAULT_PAD_ASSIGNMENTS = {"1,2", "4", "3", "5,6", "7", "9", "10", "11"};
     public static final String ARP_CONTROL_OPTION = "Arp Control";
     public static final String TRAKTOR_CONTROL_LABEL = "Traktor Http Control";
@@ -39,7 +54,7 @@ public class AllenHeathK2ControllerExtension extends ControllerExtension {
     private final PadGrouping padGrouping = new PadGrouping();
     private DirectParameterControl delayControl;
     private DirectParameterControl reverbControl;
-
+    
     private static ControllerHost debugHost;
     private HwElements hwElements;
     private SequencerLayer sequencerLayer;
@@ -47,19 +62,19 @@ public class AllenHeathK2ControllerExtension extends ControllerExtension {
     private OscConnection oscConnection;
     
     private HttpServer server;
-    private TraktorState traktorState = new TraktorState();
+    private final TraktorState traktorState = new TraktorState();
     
     public static void println(final String format, final Object... args) {
         if (debugHost != null) {
-            debugHost.println(format.format(format, args));
+            debugHost.println(String.format(format, args));
         }
     }
-
+    
     protected AllenHeathK2ControllerExtension(final ControllerExtensionDefinition definition,
-                                              final ControllerHost host) {
+        final ControllerHost host) {
         super(definition, host);
     }
-
+    
     @Override
     public void init() {
         final ControllerHost host = getHost();
@@ -74,14 +89,14 @@ public class AllenHeathK2ControllerExtension extends ControllerExtension {
         midiIn.setMidiCallback(this::onMidi);
         oscModule = host.getOscModule();
         initOsc();
-    
+        
         delayControl = new DirectParameterControl(SpecialVstDevices.LEXICON_PSP, SpecialParam.PSP_REPEAT_INF);
         reverbControl = new DirectParameterControl(SpecialVst3Devices.MEAGAVERB3, SpecialParam.MEGA_VERB_GATE);
-
+        
         final List<DirectParameterControl> controlList = new ArrayList<>();
         controlList.add(delayControl);
         controlList.add(reverbControl);
-    
+        
         viewControl = new ViewCursorControl(host, controlList, 16);
         mainLayer = new Layer(layers, "MainLayer");
         sliderLayer = new Layer(layers, "SLIDER_LAYER");
@@ -100,37 +115,32 @@ public class AllenHeathK2ControllerExtension extends ControllerExtension {
     
     private void initSliderSection() {
         final DocumentState documentState = getHost().getDocumentState();
-        final SettableEnumValue arpSliderMode = documentState.getEnumSetting(
-            "Slider Control",
-            "Slider",
-            new String[] {"No Mapping", ARP_CONTROL_OPTION}, ARP_CONTROL_OPTION);
- 
-        for(int i=0;i<8;i++) {
-            int index = i;
+        final SettableEnumValue arpSliderMode =
+            documentState.getEnumSetting("Slider Control", "Slider", new String[] {"No Mapping", ARP_CONTROL_OPTION},
+                ARP_CONTROL_OPTION);
+        
+        for (int i = 0; i < 8; i++) {
+            final int index = i;
             final HardwareSlider slider = hwElements.getSlider(i);
-            sliderLayer.bind(slider, value->viewControl.setArpValue(index, value));
+            sliderLayer.bind(slider, value -> viewControl.setArpValue(index, value));
         }
-        arpSliderMode.addValueObserver(state-> {
-            if(ARP_CONTROL_OPTION.equals(state)) {
-                sliderLayer.setIsActive(true);
-            } else {
-                sliderLayer.setIsActive(false);
-            }
+        arpSliderMode.addValueObserver(state -> {
+            sliderLayer.setIsActive(ARP_CONTROL_OPTION.equals(state));
         });
-     }
+    }
     
     private void initGuiSurface(final HardwareSurface surface) {
-        surface.setPhysicalSize(100 , 100);
+        surface.setPhysicalSize(100, 100);
     }
     
     private void initTestButtonsInDocumentState(final ControllerHost host) {
-        if(oscConnection!=null) {
+        if (oscConnection != null) {
             final Signal signal = host.getDocumentState().getSignalSetting("Test OSC", "OSC", "TEST");
             signal.addSignalObserver(() -> {
                 try {
                     oscConnection.sendMessage("/deck/A/metadata/key", true);
                 }
-                catch (IOException e) {
+                catch (final IOException e) {
                     println(" Failed send %s", e.getMessage());
                 }
             });
@@ -140,19 +150,20 @@ public class AllenHeathK2ControllerExtension extends ControllerExtension {
     private void initServers() {
         final Preferences preferences = getHost().getPreferences();
         final SettableBooleanValue active = preferences.getBooleanSetting("Active", TRAKTOR_CONTROL_LABEL, true);
-        final SettableStringValue hostValue = preferences.getStringSetting("Host",
-            TRAKTOR_CONTROL_LABEL, 15, "127.0.0.1");
+        final SettableStringValue hostValue =
+            preferences.getStringSetting("Host", TRAKTOR_CONTROL_LABEL, 15, "127.0.0.1");
         final SettableRangedValue portValue =
             preferences.getNumberSetting("Port", TRAKTOR_CONTROL_LABEL, 2000.0, 6000.0, 1, "", 3000);
-        if(active.get()) {
-            int port = (int)portValue.getRaw();
+        if (active.get()) {
+            final int port = (int) portValue.getRaw();
             try {
                 server = HttpServer.create(new InetSocketAddress(hostValue.get(), port), 0);
                 server.createContext("/", new HttpJsonHandler(traktorState));
                 server.setExecutor(Executors.newSingleThreadExecutor());
                 server.start();
-                println(" Http Server on port %d",port);
-            } catch (IOException e) {
+                println(" Http Server on port %d", port);
+            }
+            catch (final IOException e) {
                 e.printStackTrace();
             }
         }
@@ -166,10 +177,10 @@ public class AllenHeathK2ControllerExtension extends ControllerExtension {
             preferences.getNumberSetting("Port Receive", TRAKTOR_KONDUIT_CATEGORY, 6000, 13000, 1, "", 12345);
         final SettableRangedValue outPortValue =
             preferences.getNumberSetting("Port Send", TRAKTOR_KONDUIT_CATEGORY, 6000, 10000, 1, "", 9800);
-    
-        if(active.get()) {
-            int inPort = (int) inPortValue.getRaw();
-            int outPort = (int) outPortValue.getRaw();
+        
+        if (active.get()) {
+            final int inPort = (int) inPortValue.getRaw();
+            final int outPort = (int) outPortValue.getRaw();
             address.registerDefaultMethod(this::handleMessage);
             oscModule.createUdpServer(inPort, address);
             oscConnection = oscModule.connectToUdpServer("127.0.0.1", outPort, null);
@@ -179,97 +190,97 @@ public class AllenHeathK2ControllerExtension extends ControllerExtension {
     private void initDeckCaptureButtons() {
         for (int i = 0; i < 4; i++) {
             final int index = i;
-            HardwareButton button = hwElements.getCaptureKeysFromDeckButton(i);
+            final HardwareButton button = hwElements.getCaptureKeysFromDeckButton(i);
             mainLayer.bindPressed(button, () -> fetchKey(index));
         }
     }
-
-    private void fetchKey(int index) {
-        if(oscConnection != null) {
+    
+    private void fetchKey(final int index) {
+        if (oscConnection != null) {
             try {
-                println(" SEND OSC > %s", "/deck/%c/metadata/key".formatted('A'+index));
-                oscConnection.sendMessage("/deck/%c/metadata/key".formatted('A'+index), true);
+                println(" SEND OSC > %s", "/deck/%c/metadata/key".formatted('A' + index));
+                oscConnection.sendMessage("/deck/%c/metadata/key".formatted('A' + index), true);
             }
-            catch (IOException e) {
+            catch (final IOException e) {
                 println("Failed to send message %s", e.getMessage());
             }
         }
-        traktorState.getKey(index).ifPresent(key-> {
-            println(" Setting Scale %s",key);
+        traktorState.getKey(index).ifPresent(key -> {
+            println(" Setting Scale %s", key);
             viewControl.setScale(key);
         });
     }
     
     private void handleMessage(final OscConnection connection, final OscMessage message) {
-        String path = message.getAddressPattern();
-        if(path.matches("/deck/[A-D]/metadata/key") && message.getArguments().get(0) instanceof String) {
-            String[] x = path.split("/");
-            int index = x[2].charAt(0)-'A';
+        final String path = message.getAddressPattern();
+        if (path.matches("/deck/[A-D]/metadata/key") && message.getArguments().get(0) instanceof String) {
+            final String[] x = path.split("/");
+            final int index = x[2].charAt(0) - 'A';
             traktorState.setKey(index, message.getString(0));
         }
     }
     
-    private void onMidi(int msg, int data1, int data2) {
-//        println("MIDI> %02X %02X %02X", msg, data1, data2);
-//        if (msg == 0x9D && data1 == 0x0C && data2 == 0x7F) {
-//            for (int i = 0; i < 0x38; i++) {
-//                midiOut.sendMidi(Midi.NOTE_ON + 13, i, 0);
-//            }
-//        }
+    private void onMidi(final int msg, final int data1, final int data2) {
+        //        println("MIDI> %02X %02X %02X", msg, data1, data2);
+        //        if (msg == 0x9D && data1 == 0x0C && data2 == 0x7F) {
+        //            for (int i = 0; i < 0x38; i++) {
+        //                midiOut.sendMidi(Midi.NOTE_ON + 13, i, 0);
+        //            }
+        //        }
     }
-
+    
     private void initDocumentProperties() {
         final DocumentState documentState = getHost().getDocumentState();
         for (int i = 0; i < 8; i++) {
             final int index = i;
-            final SettableStringValue padAssignment = documentState.getStringSetting("Column " + (i + 1),
-                    "Pad Assignments", 10, DEFAULT_PAD_ASSIGNMENTS[i]);
+            final SettableStringValue padAssignment =
+                documentState.getStringSetting("Column " + (i + 1), "Pad Assignments", 10, DEFAULT_PAD_ASSIGNMENTS[i]);
             padAssignment.addValueObserver(value -> padGrouping.assign(index, value, drumPadsList));
         }
     }
-
+    
     private void initSendsButtons() {
         for (int i = 0; i < 16; i++) {
             final PadContainer pad = new PadContainer(i, viewControl.getDrumPadBank().getItemAt(i));
             drumPadsList.add(pad);
         }
-
-
+        
+        
         for (int i = 0; i < 8; i++) {
             final int channel = 13 + i / 4;
             final int noteOffset = i % 4;
-            final StateButton revButton = new StateButton("REV_" + i + "_BUTTON", 44 + noteOffset, channel, surface,
-                    midiIn, midiOut);
-            final StateButton delButton = new StateButton("DEL_" + i + "_BUTTON", 40 + noteOffset, channel, surface,
-                    midiIn, midiOut);
+            final StateButton revButton =
+                new StateButton("REV_" + i + "_BUTTON", 44 + noteOffset, channel, surface, midiIn, midiOut);
+            final StateButton delButton =
+                new StateButton("DEL_" + i + "_BUTTON", 40 + noteOffset, channel, surface, midiIn, midiOut);
             final PadAssignment assignment = padGrouping.getAssignment(i);
             delButton.bind(mainLayer, () -> assignment.toggleSendValue(0), () -> assignment.sendStatusColor(0));
             revButton.bind(mainLayer, () -> assignment.toggleSendValue(1), () -> assignment.sendStatusColor(1));
             reverbSendButtons[i] = revButton;
             delaySendButtons[i] = delButton;
         }
-
+        
         final StateButton delRptButton = new StateButton("DLY_INF_BUTTON", 50, 13, surface, midiIn, midiOut);
-
+        
         delRptButton.bind(mainLayer, () -> delayControl.toggle(SpecialParam.PSP_REPEAT_INF),
-                () -> delayControl.getState(SpecialParam.PSP_REPEAT_INF));
-
+            () -> delayControl.getState(SpecialParam.PSP_REPEAT_INF));
+        
         final StateButton revGateButton = new StateButton("RVB_GATE_BUTTON", 50, 14, surface, midiIn, midiOut);
         revGateButton.bind(mainLayer, () -> reverbControl.toggle(SpecialParam.MEGA_VERB_GATE),
-                () -> reverbControl.getState(SpecialParam.MEGA_VERB_GATE));
+            () -> reverbControl.getState(SpecialParam.MEGA_VERB_GATE));
     }
-
+    
     @Override
     public void exit() {
-        if(server != null) {
+        if (server != null) {
             server.stop(0);
         }
         sequencerLayer.exit();
     }
-
+    
     @Override
     public void flush() {
         surface.updateHardware();
     }
-
+    
 }
