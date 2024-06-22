@@ -15,6 +15,7 @@ import com.bitwig.extension.controller.api.PlayingNote;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.Layers;
 import com.bitwig.extensions.framework.di.Component;
+import com.rhcommons.NoteStepStore;
 import com.yaeltex.common.IntValueObject;
 import com.yaeltex.common.YaelTexColors;
 import com.yaeltex.common.YaeltexButtonLedState;
@@ -42,7 +43,9 @@ public class SequencerLayer extends AbstractSequencerLayer {
     private int selectedPadIndex = -1;
     private int playingStep;
     private boolean markIgnoreOrigLen = false;
-    private final NoteStep[] assignments = new NoteStep[32];
+    private final NoteStep[] assignments = new NoteStep[16];
+    private final NoteStep[] copyNotes = new NoteStep[16];
+    private int copyBufferIndex = -1;
     private final CursorTrack cursorTrack;
     private final Layer seqButtonLayer;
     private final Layer seqLengthLayer;
@@ -50,7 +53,6 @@ public class SequencerLayer extends AbstractSequencerLayer {
     private boolean copyHeld;
     private boolean randomHeld;
     private ClipLauncherSlot copySlot;
-    private int copySlotIndex;
     private boolean noteRepeatEnabled = false;
     private final Arpeggiator arp;
     private final NoteInput noteInput;
@@ -178,7 +180,9 @@ public class SequencerLayer extends AbstractSequencerLayer {
     private void bindModes(final HardwareElements hwElements) {
         final RgbButton[] modeButtons = hwElements.getMainButtons1();
         final RgbButton copyButton = modeButtons[0];
-        copyButton.bindLightPressed(this, pressed -> pressed ? YaeltexButtonLedState.WHITE : YaeltexButtonLedState.OFF);
+        //copyButton.bindLightPressed(this, pressed -> pressed ? YaeltexButtonLedState.WHITE : YaeltexButtonLedState
+        // .OFF);
+        copyButton.bindLight(this, () -> this.copyHeld ? YaeltexButtonLedState.WHITE : YaeltexButtonLedState.OFF);
         copyButton.bindIsPressed(this, this::handleCopyPressed);
         final RgbButton muteSoloButton = modeButtons[1];
         muteSoloButton.bindLight(this, () -> YaeltexButtonLedState.ORANGE);
@@ -256,10 +260,12 @@ public class SequencerLayer extends AbstractSequencerLayer {
     }
     
     private void handleCopyPressed(final Boolean pressed) {
-        this.copyHeld = pressed;
         if (!pressed) {
-            copySlot = null;
-            copySlotIndex = -1;
+            return;
+        }
+        this.copyHeld = !this.copyHeld;
+        if (!this.copyHeld) {
+            copyBufferIndex = -1;
             clearCopyNote();
         }
     }
@@ -281,6 +287,15 @@ public class SequencerLayer extends AbstractSequencerLayer {
     }
     
     private YaeltexButtonLedState getPadColorState(final int index) {
+        final YaeltexButtonLedState color = getPadColor(index);
+        if (index == copyBufferIndex) {
+            return midiProcessor.blinkFast(color);
+        }
+        return color;
+    }
+    
+    
+    private YaeltexButtonLedState getPadColor(final int index) {
         if (notesPlaying[index]) {
             return playColor;
         }
@@ -293,7 +308,7 @@ public class SequencerLayer extends AbstractSequencerLayer {
     private void handlePadSelection(final int index, final boolean selected) {
         if (selected) {
             selectedPadIndex = index;
-            if (selectedPadIndex >= 0 && selectedPadIndex < 16) {
+            if (selectedPadIndex >= 0 && selectedPadIndex < 8) {
                 clip.scrollToKey(selectedPadIndex + noteOffset);
             }
         }
@@ -380,6 +395,30 @@ public class SequencerLayer extends AbstractSequencerLayer {
         }
     }
     
+    protected void handleNoteCopyAction(final int index, final NoteStep note) {
+        if (copyBufferIndex != -1) {
+            for (int i = 0; i < this.copyNotes.length; i++) {
+                final NoteStep copyNote = copyNotes[i];
+                if (copyNote == null || copyNote.state() == NoteStep.State.Empty) {
+                    clip.clearStep(i, 0);
+                } else {
+                    final int vel = (int) Math.round(copyNote.velocity() * 127);
+                    final double duration = copyNote.duration();
+                    operatorNoteState.registerChanges(i, copyNote);
+                    clip.setStep(i, 0, vel, duration);
+                }
+            }
+        } else {
+            copyBufferIndex = selectedPadIndex;
+            DjControllerExtension.println(" copy => %d", copyBufferIndex);
+            for (int i = 0; i < this.copyNotes.length; i++) {
+                final NoteStep orig = this.assignments[i];
+                this.copyNotes[i] = orig != null ? new NoteStepStore(orig) : null;
+            }
+        }
+    }
+    
+    
     @Override
     protected int getVelocity() {
         return 100;
@@ -398,6 +437,5 @@ public class SequencerLayer extends AbstractSequencerLayer {
         seqLengthLayer.setIsActive(false);
         disableNotePlay();
     }
-    
     
 }

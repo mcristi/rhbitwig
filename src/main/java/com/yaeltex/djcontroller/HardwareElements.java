@@ -21,6 +21,7 @@ public class HardwareElements {
     
     private final RingEncoder[] bottomEncoders1 = new RingEncoder[4];
     private final RingEncoder[] bottomEncoders2 = new RingEncoder[4];
+    private final RingEncoder[] topRingEncoders2 = new RingEncoder[4];
     private final HardwareSlider[] sliders1 = new HardwareSlider[8];
     private final HardwareSlider[] sliders2 = new HardwareSlider[8];
     private final RgbButton[] stepButtons1 = new RgbButton[16];
@@ -39,6 +40,8 @@ public class HardwareElements {
         surface.setPhysicalSize(300, 400);
         
         for (int i = 0; i < 4; i++) {
+            topRingEncoders2[i] = new RingEncoder(0, 9 + i, 0, "TENC_1_%d".formatted(i + 1), surface, midiProcessor,
+                RingEncoder.Mode.SIGNED_BIT);
             bottomEncoders1[i] = new RingEncoder(0, 0x4 + i, 0, "ENC_1_%d".formatted(i + 1), surface, midiProcessor,
                 RingEncoder.Mode.SIGNED_BIT);
             bottomEncoders2[i] = new RingEncoder(0, 0x4 + i, 1, "ENC_2_%d".formatted(i + 1), surface, midiProcessor,
@@ -47,6 +50,8 @@ public class HardwareElements {
             bottomEncoders1[i].getButton().setLabel(" ");
             bottomEncoders2[i].setBounds(C2_OFFSET + i * 34.0, 320, 28);
             bottomEncoders1[i].getButton().setLabel(" ");
+            topRingEncoders2[i].setBounds(C2_OFFSET + i * 34.0, 350, 28);
+            topRingEncoders2[i].getButton().setLabel(" ");
         }
         
         for (int i = 0; i < 8; i++) {
@@ -146,6 +151,10 @@ public class HardwareElements {
     
     public RgbButton[] getSelectButtons1() {
         return selectButtons1;
+    }
+    
+    public RingEncoder[] getTopRingEncoders2() {
+        return topRingEncoders2;
     }
     
     private HardwareSlider createSliderCc(final String name, final HardwareSurface surface, final MidiIn midiIn,

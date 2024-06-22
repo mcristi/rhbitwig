@@ -13,7 +13,6 @@ import com.yaeltex.common.YaeltexButtonLedState;
 import com.yaeltex.common.YaeltexMidiProcessor;
 
 public abstract class AbstractSequencerLayer extends Layer {
-    private int copyNoteIndex;
     protected final NotesState operatorNoteState;
     protected final StepViewPosition positionHandler;
     protected final YaeltexMidiProcessor midiProcessor;
@@ -91,13 +90,11 @@ public abstract class AbstractSequencerLayer extends Layer {
             clip.setStep(index, 0, vel, duration);
         } else if (note != null && note.state() == NoteStep.State.NoteOn) {
             copyNote = note;
-            copyNoteIndex = index;
         }
     }
     
     protected void clearCopyNote() {
         copyNote = null;
-        copyNoteIndex = -1;
     }
     
     protected void setStepLength(final int index) {

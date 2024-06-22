@@ -103,9 +103,26 @@ public class DjControllerExtension extends ControllerExtension {
         bindDrumSends(hwElements.getStepButtons2(), 1, viewControl.getDrumPadBank(), 0);
         bindDrumSends(hwElements.getStepButtons2(), 0, viewControl.getDrumPadBank(), 1);
         
-        final RgbButton holdPspButton = hwElements.getBottomEncoders2()[0].getButton();
+        final RingEncoder pspEncoder = hwElements.getBottomEncoders2()[0];
+        final RgbButton holdPspButton = pspEncoder.getButton();
         final RemoteControl holdParameter = projectGroup.getRemotes(10).getParameter(0);
+        final RemoteControl pspParameter = projectGroup.getRemotes(10).getParameter(1);
         holdPspButton.bindToggleValue(mainLayer, holdParameter, YaeltexButtonLedState.RED);
+        pspEncoder.bind(mainLayer, pspParameter.value());
+        
+        final RingEncoder[] topEncoders = hwElements.getTopRingEncoders2();
+        for (int i = 0; i < topEncoders.length; i++) {
+            final int index = i;
+            final RgbButton button = topEncoders[i].getButton();
+            button.bindPressed(mainLayer, () -> {
+                traktorState.getKey(index).ifPresent(key -> {
+                    println(" Setting Scale %s", key);
+                    viewControl.setScale(key);
+                });
+            });
+            button.bindLight(mainLayer,
+                () -> traktorState.getKey(index).isPresent() ? YaeltexButtonLedState.GREEN : YaeltexButtonLedState.OFF);
+        }
     }
     
     private void bindControls(final AbsoluteHardwareControl[] controls, final int page, final int controlOffset) {
@@ -148,7 +165,7 @@ public class DjControllerExtension extends ControllerExtension {
     
     private void initServers() {
         final Preferences preferences = getHost().getPreferences();
-        final SettableBooleanValue active = preferences.getBooleanSetting("Active", TRAKTOR_CONTROL_LABEL, false);
+        final SettableBooleanValue active = preferences.getBooleanSetting("Active", TRAKTOR_CONTROL_LABEL, true);
         final SettableStringValue hostValue =
             preferences.getStringSetting("Host", TRAKTOR_CONTROL_LABEL, 15, "127.0.0.1");
         final SettableRangedValue portValue =
@@ -169,6 +186,9 @@ public class DjControllerExtension extends ControllerExtension {
     }
     
     public void exit() {
+        if (server != null) {
+            server.stop(0);
+        }
     }
     
     @Override

@@ -5,11 +5,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Optional;
 
-import com.allenheath.k2.set1.AllenHeathK2ControllerExtension;
 import com.rhcommons.json.JsonObject;
 import com.rhcommons.json.JsonParser;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+import com.yaeltex.djcontroller.DjControllerExtension;
 
 public class HttpJsonHandler implements HttpHandler {
     
@@ -35,7 +35,8 @@ public class HttpJsonHandler implements HttpHandler {
                     final int deckIndex = deckId.charAt(0) - 'A';
                     final JsonObject metadata = data.getJsonObject("metadata");
                     if (metadata != null) {
-                        AllenHeathK2ControllerExtension.println(" DECK %s %d", deckId, deckIndex);
+                        DjControllerExtension.println(
+                            " DECK %s %d => %s", deckId, deckIndex, metadata.getStringValue("key").orElse("ERR"));
                         traktorState.setKey(deckIndex, metadata.getStringValue("key").orElse("ERR"));
                     }
                 });
@@ -45,7 +46,7 @@ public class HttpJsonHandler implements HttpHandler {
             outputStream.flush();
             outputStream.close();
         } else {
-            AllenHeathK2ControllerExtension.println(" OTHER %s", exchange.getRequestMethod());
+            DjControllerExtension.println(" OTHER %s", exchange.getRequestMethod());
         }
     }
     
