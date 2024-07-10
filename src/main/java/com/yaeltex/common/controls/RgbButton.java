@@ -101,6 +101,12 @@ public class RgbButton {
         layer.bindLightState(() -> parameter.value().get() == 0 ? YaeltexButtonLedState.OFF : color, light);
     }
     
+    public void bindToggleValue(final Layer layer, final Parameter parameter, final YaeltexButtonLedState onColor,
+        final YaeltexButtonLedState offColor) {
+        bindToggleValue(layer, parameter);
+        layer.bindLightState(() -> parameter.value().get() == 0 ? offColor : onColor, light);
+    }
+    
     public void bindMomentaryValue(final Layer layer, final Parameter parameter, final YaeltexButtonLedState color) {
         bindMomentaryValue(layer, parameter);
         layer.bindLightState(() -> parameter.value().get() == 0 ? YaeltexButtonLedState.OFF : color, light);

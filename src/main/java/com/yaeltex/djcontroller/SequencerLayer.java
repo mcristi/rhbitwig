@@ -5,6 +5,7 @@ import java.util.Arrays;
 import com.bitwig.extension.controller.api.Arpeggiator;
 import com.bitwig.extension.controller.api.ClipLauncherSlot;
 import com.bitwig.extension.controller.api.ClipLauncherSlotBank;
+import com.bitwig.extension.controller.api.CursorRemoteControlsPage;
 import com.bitwig.extension.controller.api.CursorTrack;
 import com.bitwig.extension.controller.api.DrumPad;
 import com.bitwig.extension.controller.api.DrumPadBank;
@@ -49,6 +50,8 @@ public class SequencerLayer extends AbstractSequencerLayer {
     private final CursorTrack cursorTrack;
     private final Layer seqButtonLayer;
     private final Layer seqLengthLayer;
+    private final Layer muteButtonLayer;
+    private final Layer selectButtonLayer;
     private final boolean muteState = false;
     private boolean copyHeld;
     private boolean randomHeld;
@@ -57,12 +60,13 @@ public class SequencerLayer extends AbstractSequencerLayer {
     private final Arpeggiator arp;
     private final NoteInput noteInput;
     private final IntValueObject selectedArpIndex = new IntValueObject(1, 0, 2);
+    private SelectMode selectMode = SelectMode.MUTE;
+    private final CursorRemoteControlsPage trackRemotes;
     
     
     private enum SelectMode {
-        SELECT,
         MUTE,
-        SOLO
+        TYPE_SELECT
     }
     
     public SequencerLayer(final Layers layers, final HardwareElements hwElements, final RhdjViewControl viewControl,
@@ -70,6 +74,7 @@ public class SequencerLayer extends AbstractSequencerLayer {
         super(layers, midiProcessor, viewControl.getCursorClip(), 8, 16, 4);
         this.viewControl = viewControl;
         cursorTrack = viewControl.getDrumCursorTrack();
+        trackRemotes = cursorTrack.createCursorRemoteControlsPage(8);
         noteInput = midiProcessor.getMidiIn(0).createNoteInput("REPEAT", "80????", "90????");
         arp = noteInput.arpeggiator();
         initArp();
@@ -77,6 +82,8 @@ public class SequencerLayer extends AbstractSequencerLayer {
         
         this.seqButtonLayer = new Layer(layers, "SEQ_BUTTON_LAYER");
         this.seqLengthLayer = new Layer(layers, "SEQ_LENGTH_LAYER");
+        this.muteButtonLayer = new Layer(layers, "MUTE_LAYER");
+        this.selectButtonLayer = new Layer(layers, "SELECT_BUTTON_LAYER");
         setupClip();
         final DrumPadBank drumPadBank = this.viewControl.getDrumPadBank();
         drumPadBank.scrollPosition().addValueObserver(position -> {
@@ -147,9 +154,11 @@ public class SequencerLayer extends AbstractSequencerLayer {
             drumPad.addIsSelectedInEditorObserver(selected -> handlePadSelection(index, selected));
             selectButton.bindLight(this, () -> getPadColorState(index));
             selectButton.bindPressed(this, () -> handlePadSelection(index, drumPad));
-            muteButton.bindPressed(this, () -> drumPad.mute().toggle());
+            muteButton.bindPressed(muteButtonLayer, () -> drumPad.mute().toggle());
             muteButton.bindLight(
-                this, () -> drumPad.mute().get() ? YaeltexButtonLedState.ORANGE : YaeltexButtonLedState.OFF);
+                muteButtonLayer, () -> drumPad.mute().get() ? YaeltexButtonLedState.ORANGE : YaeltexButtonLedState.OFF);
+            muteButton.bindToggleValue(
+                selectButtonLayer, trackRemotes.getParameter(i), YaeltexButtonLedState.RED, YaeltexButtonLedState.BLUE);
         }
     }
     
@@ -184,8 +193,10 @@ public class SequencerLayer extends AbstractSequencerLayer {
         // .OFF);
         copyButton.bindLight(this, () -> this.copyHeld ? YaeltexButtonLedState.WHITE : YaeltexButtonLedState.OFF);
         copyButton.bindIsPressed(this, this::handleCopyPressed);
-        final RgbButton muteSoloButton = modeButtons[1];
-        muteSoloButton.bindLight(this, () -> YaeltexButtonLedState.ORANGE);
+        final RgbButton muteSelectButton = modeButtons[1];
+        muteSelectButton.bindLight(
+            this, () -> selectMode == SelectMode.MUTE ? YaeltexButtonLedState.ORANGE : YaeltexButtonLedState.BLUE);
+        muteSelectButton.bindPressed(this, this::toggleSelectMode);
         
         final RgbButton randomButton = modeButtons[2];
         randomButton.bindLightPressed(
@@ -197,6 +208,15 @@ public class SequencerLayer extends AbstractSequencerLayer {
         lastStepButton.bindLightPressed(
             this, pressed -> pressed ? YaeltexButtonLedState.WHITE : YaeltexButtonLedState.OFF);
         
+    }
+    
+    private void toggleSelectMode() {
+        if (selectMode == SelectMode.MUTE) {
+            this.selectMode = SelectMode.TYPE_SELECT;
+        } else {
+            this.selectMode = SelectMode.MUTE;
+        }
+        updateMuteButtonRow();
     }
     
     private void bindNoteRepeat(final HardwareElements hwElements) {
@@ -428,7 +448,13 @@ public class SequencerLayer extends AbstractSequencerLayer {
     protected void onActivate() {
         this.seqButtonLayer.setIsActive(true);
         seqLengthLayer.setIsActive(false);
+        updateMuteButtonRow();
         disableNotePlay();
+    }
+    
+    private void updateMuteButtonRow() {
+        muteButtonLayer.setIsActive(selectMode == SelectMode.MUTE);
+        selectButtonLayer.setIsActive(selectMode == SelectMode.TYPE_SELECT);
     }
     
     @Override

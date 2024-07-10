@@ -40,7 +40,7 @@ public class HardwareElements {
         surface.setPhysicalSize(300, 400);
         
         for (int i = 0; i < 4; i++) {
-            topRingEncoders2[i] = new RingEncoder(0, 9 + i, 0, "TENC_1_%d".formatted(i + 1), surface, midiProcessor,
+            topRingEncoders2[i] = new RingEncoder(0, i, 0, "TENC_1_%d".formatted(i + 1), surface, midiProcessor,
                 RingEncoder.Mode.SIGNED_BIT);
             bottomEncoders1[i] = new RingEncoder(0, 0x4 + i, 0, "ENC_1_%d".formatted(i + 1), surface, midiProcessor,
                 RingEncoder.Mode.SIGNED_BIT);
