@@ -11,6 +11,7 @@ import com.akai.fire.display.OledDisplay.TextJustification;
 import com.akai.fire.lights.BiColorLightState;
 import com.akai.fire.lights.RgbLigthState;
 import com.akai.fire.sequence.NoteAction.Type;
+import com.bitwig.extension.api.Color;
 import com.bitwig.extension.controller.api.*;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
@@ -125,6 +126,8 @@ public class PadHandler {
         } else {
             if (parent.isCopyHeld()) {
                 doNotesPadCopy(pad);
+            } else if (parent.isShiftHeld()) {
+                pad.pad.color().set(getPadColor(pad.pad));
             } else if (parent.isDeleteHeld()) {
                 if (pad.index == selectedPadIndex) {
                     cursorClip.clearStepsAtY(0, 0);
@@ -139,10 +142,39 @@ public class PadHandler {
         }
     }
 
+    private Color getPadColor(DrumPad pad) {
+        Color[] colors = {
+            Color.fromHex("#d92e24"), // red
+            Color.fromHex("#ff5706"), // orange
+            Color.fromHex("#44c8ff"), // dark blue
+            Color.fromHex("#0099d9"), // light blue
+            Color.fromHex("#009d47"), // dark green
+            Color.fromHex("#3ebb62"), // light green
+            Color.fromHex("#d99d10"), // yellow
+            Color.fromHex("#c9c9c9"), // white
+            Color.fromHex("#5761c6"), // dark purple
+            Color.fromHex("#bc76f0"), // light purple
+        };
+        Color currentColor = pad.color().get();
+
+        int colorIndex = 0;
+        for (int i = 0; i < colors.length; i++) {
+            if (colors[i].toHex().equals(currentColor.toHex())) {
+                colorIndex = i + 1;
+            }
+        }
+        if (colorIndex == colors.length) {
+            colorIndex = 0;
+        }
+        return colors[colorIndex];
+    }
+
     void executeCopy(final List<NoteStep> notes, final boolean copyParams) {
         cursorClip.clearStepsAtY(0, 0);
         for (final NoteStep noteStep : notes) {
-            cursorClip.setStep(noteStep.x(), 0, (int) (noteStep.velocity() * 127), noteStep.duration());
+            // TODO: this is an API bug
+            cursorClip.setStep(noteStep.x(), 0, 100, 0.25);
+//            cursorClip.setStep(noteStep.x(), 0, (int) (noteStep.velocity() * 127), noteStep.duration());
             if (copyParams) {
                 parent.registerExpectedNoteChange(noteStep.x(), noteStep);
             }
@@ -374,6 +406,12 @@ public class PadHandler {
         }
     }
 
+    public void bindPadMacros(final Layer layer) {
+        for (final PadContainer pad : pads) {
+            pad.bindMacros(layer);
+        }
+    }
+
     public void updateDisplay(final int index) {
         if (selectedPad != null) {
             selectedPad.updateDisplay(index);
@@ -381,4 +419,7 @@ public class PadHandler {
 
     }
 
+    public NoteRepeatHandler getNoteRepeaterHandler() {
+        return noteRepeatHandler;
+    }
 }

@@ -4,6 +4,7 @@ import com.akai.fire.AkaiFireDrumSeqExtension;
 import com.akai.fire.ColorLookup;
 import com.akai.fire.control.RgbButton;
 import com.akai.fire.lights.RgbLigthState;
+import com.bitwig.extension.api.Color;
 import com.bitwig.extension.controller.api.ClipLauncherSlot;
 import com.bitwig.extension.controller.api.ClipLauncherSlotBank;
 import com.bitwig.extension.controller.api.CursorTrack;
@@ -123,6 +124,8 @@ public class SeqClipHandler {
                 }
             } else if (parent.isSelectHeld()) {
                 slot.select();
+            } else if (parent.isShiftHeld()) {
+                slot.color().set(getSlotColor(slot));
             } else {
                 slot.select();
                 slot.launch();
@@ -141,5 +144,32 @@ public class SeqClipHandler {
     public void notifyBlink(final int blinkState) {
         this.blinkState = blinkState;
     }
+	private Color getSlotColor(ClipLauncherSlot slot) {
+		Color[] colors = {
+			Color.fromHex("#d92e24"), // red
+			Color.fromHex("#ff5706"), // orange
+			Color.fromHex("#44c8ff"), // dark blue
+			Color.fromHex("#0099d9"), // light blue
+			Color.fromHex("#009d47"), // dark green
+			Color.fromHex("#3ebb62"), // light green
+			Color.fromHex("#d99d10"), // yellow
+			Color.fromHex("#c9c9c9"), // white
+			Color.fromHex("#5761c6"), // dark purple
+			Color.fromHex("#bc76f0"), // light purple
+		};
+		Color currentColor = slot.color().get();
+
+		int colorIndex = 0;
+		for (int i = 0; i < colors.length; i++) {
+			if (colors[i].toHex().equals(currentColor.toHex())) {
+				colorIndex = i + 1;
+			}
+		}
+		if (colorIndex == colors.length) {
+			colorIndex = 0;
+		}
+		return colors[colorIndex];
+	}
+
 
 }

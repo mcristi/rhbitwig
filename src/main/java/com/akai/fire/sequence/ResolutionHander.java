@@ -15,7 +15,7 @@ public class ResolutionHander {
 	}
 
 	BiColorLightState getLightState() {
-		return buttonHeld ? BiColorLightState.AMBER_FULL : BiColorLightState.AMBER_HALF;
+		return buttonHeld ? BiColorLightState.RED_HALF : BiColorLightState.OFF;
 	}
 
 	void handlePressed(final boolean pressed) {

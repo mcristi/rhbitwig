@@ -123,6 +123,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         transport.tempo().markInterested();
         transport.playPosition().markInterested();
         transport.isClipLauncherOverdubEnabled().markInterested();
+        transport.isMetronomeEnabled().markInterested();
         final BiColorButton playButton = addButton(NoteAssign.PLAY);
         playButton.bindPressed(mainLayer, this::togglePlay, this::getPlayState);
         final BiColorButton recButton = addButton(NoteAssign.REC);
@@ -148,7 +149,8 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         addButton(NoteAssign.PATTERN_DOWN);
         addButton(NoteAssign.BANK_L);
         addButton(NoteAssign.BANK_R);
-        addButton(NoteAssign.PATTERN);
+        final BiColorButton metronomeButton = addButton(NoteAssign.PATTERN);
+        metronomeButton.bindPressed(mainLayer, this::toggleMetronome, this::getMetronomeState);
         addButton(NoteAssign.BROWSER);
         stateLights[0] = createLight(NoteAssign.TRACK_SELECT_1);
         stateLights[1] = createLight(NoteAssign.TRACK_SELECT_2);
@@ -183,11 +185,15 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     }
 
     private BiColorLightState getPlayState() {
-        return transport.isPlaying().get() ? BiColorLightState.GREEN_FULL : BiColorLightState.GREEN_HALF;
+        return transport.isPlaying().get() ? BiColorLightState.GREEN_FULL : BiColorLightState.OFF;
     }
 
     private BiColorLightState getOverdubState() {
         return transport.isClipLauncherOverdubEnabled().get() ? BiColorLightState.GREEN_FULL : BiColorLightState.OFF;
+    }
+
+    private BiColorLightState getMetronomeState() {
+        return transport.isMetronomeEnabled().get() ? BiColorLightState.AMBER_HALF : BiColorLightState.OFF;
     }
 
     private void dummyAction(final boolean pressed) {
@@ -205,6 +211,13 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
             return;
         }
         transport.isClipLauncherOverdubEnabled().toggle();
+    }
+
+    private void toggleMetronome(final boolean pressed) {
+        if (!pressed) {
+            return;
+        }
+        transport.isMetronomeEnabled().toggle();
     }
 
     private void togglePlay(final boolean pressed) {

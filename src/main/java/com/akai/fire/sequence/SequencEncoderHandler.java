@@ -16,7 +16,8 @@ import com.bitwig.extensions.framework.Layer;
 
 public class SequencEncoderHandler extends Layer {
 
-	private final static String[] paramNames = { "Volume", "Panning", "Send 1", "Send 2" };
+	private final static String[] user1ParamNames = { "Volume", "Panning", "Send 1", "Send 2" };
+	private final static String[] user2ParamNames = { "Select/Tune", "Attack/Decay", "Decay/Param1", "Sust/Param2" };
 
 	private final DrumSequenceMode parent;
 
@@ -25,6 +26,7 @@ public class SequencEncoderHandler extends Layer {
 	private final Layer mixerLayer;
 	private final Layer mixerShiftLayer;
 	private final Layer user1Layer;
+	private final Layer user2Layer;
 
 	private Layer currentLayer;
 	private final OledDisplay oled;
@@ -63,11 +65,13 @@ public class SequencEncoderHandler extends Layer {
 		mixerLayer = new Layer(driver.getLayers(), "ENC_MIXER_LAYER");
 		mixerShiftLayer = new Layer(driver.getLayers(), "ENC_SHIFT_MIXER_LAYER");
 		user1Layer = new Layer(driver.getLayers(), "ENC_USER1_LAYER");
+		user2Layer = new Layer(driver.getLayers(), "ENC_USER2_LAYER");
 		encoders = driver.getEncoders();
 		assign(EncoderMode.CHANNEL, channelLayer, encoders);
 		assign(EncoderMode.MIXER, mixerLayer, encoders);
 		assign(EncoderMode.MIXER_SHIFT, mixerShiftLayer, encoders);
-		assignParams(EncoderMode.USER_1, user1Layer, encoders);
+		assignUser1Params(EncoderMode.USER_1, user1Layer, encoders);
+		assignUser2Params(EncoderMode.USER_2, user2Layer, encoders);
 		currentLayer = channelLayer;
 		final BiColorButton modeButon = driver.getButton(NoteAssign.KNOB_MODE);
 		modeButon.bindPressed(this, this::handleModeAdvance, this::modeToLight);
@@ -97,10 +101,20 @@ public class SequencEncoderHandler extends Layer {
 		}
 	}
 
-	private void assignParams(final EncoderMode mode, final Layer layer, final TouchEncoder[] encoders) {
+	private void assignUser1Params(final EncoderMode mode, final Layer layer, final TouchEncoder[] encoders) {
 		modeMapping.put(mode, layer);
 		for (int i = 0; i < encoders.length; i++) {
-			bindPadEncoder(i, layer, encoders[i], paramNames[i]);
+			bindPadEncoder(i, layer, encoders[i], user1ParamNames[i]);
+		}
+	}
+
+	private void assignUser2Params(final EncoderMode mode, final Layer layer, final TouchEncoder[] encoders) {
+		modeMapping.put(mode, layer);
+		for (int i = 0; i < encoders.length; i++) {
+			int index = i;
+			encoders[i].bindEncoder(layer, inc -> handleParam(index + 4, inc));
+			encoders[i].bindTouched(layer, touched -> handleTouchParam(index + 4, touched, user2ParamNames[index]));
+			padHandler.bindPadMacros(layer);
 		}
 	}
 
@@ -112,6 +126,8 @@ public class SequencEncoderHandler extends Layer {
 			return EncoderMode.MIXER;
 		} else if (encoderMode == EncoderMode.MIXER || encoderMode == EncoderMode.MIXER_SHIFT) {
 			return EncoderMode.USER_1;
+		} else if (encoderMode == EncoderMode.USER_1) {
+			return EncoderMode.USER_2;
 		}
 		return EncoderMode.CHANNEL;
 	}

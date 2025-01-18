@@ -55,7 +55,7 @@
                             <sourceFile>${project.build.directory}/${project.build.finalName}.jar
                             </sourceFile>
                             <destinationFile>
-                                ${bitwig.extension.directory}/HawtinExtensionsBw5.bwextension
+								/Users/meli/Documents/Bitwig Studio/Extensions/rhbitwig.bwextension
                             </destinationFile>
                         </configuration>
                     </execution>

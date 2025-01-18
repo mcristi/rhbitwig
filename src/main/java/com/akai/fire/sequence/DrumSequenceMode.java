@@ -84,6 +84,7 @@ public class DrumSequenceMode extends Layer {
 
         cursorTrack = driver.getViewControl().getCursorTrack();
         cursorTrack.name().markInterested();
+        cursorTrack.isPinned().markInterested();
         cursorClip = cursorTrack.createLauncherCursorClip("SQClip", "SQClip", 32, 1);
 
         cursorClip.addNoteStepObserver(this::handleNoteStep);
@@ -294,13 +295,13 @@ public class DrumSequenceMode extends Layer {
     }
 
     private BiColorLightState getPinnedState() {
-        return cursorClip.isPinned().get() ? BiColorLightState.HALF : BiColorLightState.OFF;
+        return cursorTrack.isPinned().get() ? BiColorLightState.HALF : BiColorLightState.OFF;
     }
 
     private void handleClipPinning(final boolean pressed) {
         if (pressed) {
-            cursorClip.isPinned().toggle();
-            oled.paramInfo((cursorClip.isPinned().get() ? "UNPIN" : "PIN") + " Clip", "TR:" + cursorTrack.name().get());
+            cursorTrack.isPinned().toggle();
+            oled.paramInfo((cursorTrack.isPinned().get() ? "UNPIN" : "PIN") + " Track", "TR:" + cursorTrack.name().get());
         } else {
             oled.clearScreenDelayed();
         }
@@ -460,6 +461,16 @@ public class DrumSequenceMode extends Layer {
 
     private void stepActionFixedLength(final int index) {
         final double newLen = positionHandler.lengthWithLastStep(index);
+
+        if (shiftActive.get()) {
+            // NOTE: duplicate content when doubling the size of clip
+            double curLen = cursorClip.getLoopLength().get();
+            while (newLen % curLen == 0 && newLen > curLen) {
+                curLen = curLen * 2;
+                cursorClip.duplicateContent();
+            }
+        }
+
         adjustMode(newLen);
         cursorClip.getLoopLength().set(newLen);
     }
@@ -589,5 +600,11 @@ public class DrumSequenceMode extends Layer {
         soloActionsTaken.set(true);
     }
 
+    public AccentHandler getAccentHandler() {
+        return accentHandler;
+    }
 
+    public PadHandler getPadHandler() {
+        return padHandler;
+    }
 }

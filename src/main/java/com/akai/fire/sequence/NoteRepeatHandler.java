@@ -23,6 +23,7 @@ public class NoteRepeatHandler {
 	public NoteRepeatHandler(final AkaiFireDrumSeqExtension driver, final DrumSequenceMode drumSequenceMode) {
 		this.parent = drumSequenceMode;
 		this.noteInput = driver.getNoteInput();
+		this.setNoteInputVelocity(parent.getAccentHandler().getCurrenVel());
 		this.selectedArpIndex = 1;
 		arp = noteInput.arpeggiator();
 		arp.usePressureToVelocity().set(true);
@@ -85,4 +86,12 @@ public class NoteRepeatHandler {
 		arp.isEnabled().set(false);
 	}
 
+	public void setNoteInputVelocity(final int velocity) {
+		// NOTE: note repeat velocity
+		final Integer[] notesToDrumTable = new Integer[128];
+		for (int i = 0; i < notesToDrumTable.length; i++) {
+			notesToDrumTable[i] = velocity;
+		}
+		noteInput.setVelocityTranslationTable(notesToDrumTable);
+	}
 }

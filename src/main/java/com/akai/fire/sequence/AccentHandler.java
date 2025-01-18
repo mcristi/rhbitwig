@@ -33,6 +33,7 @@ public class AccentHandler {
 		if (!pressed) {
 			if (!modified) {
 				accentActive.toggle();
+				this.parent.getPadHandler().getNoteRepeaterHandler().setNoteInputVelocity(this.getCurrenVel());
 			}
 			parent.getOled().clearScreenDelayed();
 			modified = false;
@@ -66,6 +67,7 @@ public class AccentHandler {
 			}
 		}
 		modified = true;
+		this.parent.getPadHandler().getNoteRepeaterHandler().setNoteInputVelocity(this.getCurrenVel());
 	}
 
 	void handeMainEncoderPress(final boolean pressed) {
