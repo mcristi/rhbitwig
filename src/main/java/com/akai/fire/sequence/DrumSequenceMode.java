@@ -502,7 +502,8 @@ public class DrumSequenceMode extends Layer {
     }
 
     private void applyValues(final NoteStep dest, final NoteStep src) {
-        dest.setChance(src.chance());
+        // TODO: this is a bug, somewhere the chance is lost
+        dest.setChance(1); // src.chance()
         dest.setTimbre(src.timbre());
         dest.setPressure(src.pressure());
         dest.setRepeatCount(src.repeatCount());

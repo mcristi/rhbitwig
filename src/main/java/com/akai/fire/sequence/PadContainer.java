@@ -12,7 +12,7 @@ import com.bitwig.extensions.framework.values.DawColor;
 
 class PadContainer {
 
-    private static final double SHIFT_INC = 0.01;
+    private static final double SHIFT_INC = 0.001;
     private static final double REGULAR_INC = 0.025;
 
     private static final RgbLigthState TR_RED = new RgbLigthState(70, 0, 0, true);
