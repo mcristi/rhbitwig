@@ -129,9 +129,11 @@ class PadContainer {
             return RgbLigthState.OFF;
         }
         if (pad.mute().get()) {
-            return playing.returnTrueFalse(muteColor.getDimmed(), muteColor.getVeryDimmed());
+//            return playing.returnTrueFalse(muteColor.getDimmed(), muteColor.getVeryDimmed());
+            return playing.returnTrueFalse(padColor.getDimmed(), padColor.getVeryDimmed());
         }
-        return playing.returnTrueFalse(muteColor.getBrightest(), muteColor);
+//        return playing.returnTrueFalse(muteColor.getBrightest(), muteColor);
+        return playing.returnTrueFalse(padColor.getBrightest(), padColor);
     }
 
     public RgbLigthState soloingColors() {
@@ -139,9 +141,11 @@ class PadContainer {
             return RgbLigthState.OFF;
         }
         if (pad.solo().get()) {
-            return playing.returnTrueFalse(soloColor.getBrightest(), soloColor);
+//            return playing.returnTrueFalse(soloColor.getBrightest(), soloColor);
+            return playing.returnTrueFalse(padColor.getBrightest(), padColor);
         }
-        return playing.returnTrueFalse(soloColor.getDimmed(), soloColor.getVeryDimmed());
+//        return playing.returnTrueFalse(soloColor.getDimmed(), soloColor.getVeryDimmed());
+        return playing.returnTrueFalse(padColor.getDimmed(), padColor.getVeryDimmed());
     }
 
     public String getName() {

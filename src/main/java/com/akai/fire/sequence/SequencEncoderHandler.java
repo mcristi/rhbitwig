@@ -17,7 +17,7 @@ import com.bitwig.extensions.framework.Layer;
 public class SequencEncoderHandler extends Layer {
 
 	private final static String[] user1ParamNames = { "Volume", "Panning", "Send 1", "Send 2" };
-	private final static String[] user2ParamNames = { "Select/Tune", "Attack/Decay", "Decay/Param1", "Sust/Param2" };
+	private final static String[] user2ParamNames = { "Attack/Tune", "Decay/Decay", "Sust/Param1", "Decay/Param2" };
 
 	private final DrumSequenceMode parent;
 
@@ -75,7 +75,7 @@ public class SequencEncoderHandler extends Layer {
 		currentLayer = channelLayer;
 		final BiColorButton modeButon = driver.getButton(NoteAssign.KNOB_MODE);
 		modeButon.bindPressed(this, this::handleModeAdvance, this::modeToLight);
-		parent.getShiftActive().addValueObserver(this::handleShiftChange);
+//		parent.getShiftActive().addValueObserver(this::handleShiftChange);
 	}
 
 	private void handleShiftChange(final boolean shiftActive) {
@@ -120,7 +120,7 @@ public class SequencEncoderHandler extends Layer {
 
 	public EncoderMode nextMode() {
 		if (encoderMode == EncoderMode.CHANNEL) {
-			if (parent.isSelectHeld()) {
+			if (parent.isShiftHeld()) { // select MIXER_SHIFT on shift + mode
 				return EncoderMode.MIXER_SHIFT;
 			}
 			return EncoderMode.MIXER;
@@ -162,7 +162,7 @@ public class SequencEncoderHandler extends Layer {
 			oled.clearScreenDelayed();
 			return;
 		}
-		if (parent.getShiftActive().get()) {
+		if (parent.isSelectHeld()) { // display encoder details on select + mode
 			oled.detailInfo("Encoder Mode", encoderMode.getInfo());
 		} else {
 			switchMode(nextMode());

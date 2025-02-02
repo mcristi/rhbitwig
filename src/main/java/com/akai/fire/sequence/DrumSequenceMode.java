@@ -379,26 +379,30 @@ public class DrumSequenceMode extends Layer {
                                                       final FunctionInfo info1, final FunctionInfo info2,
                                                       final Boolean pressed) {
         if (pressed) {
-            if (alternateFunctionActive.get()) {
-                altValue.set(true);
+            if (getShiftActive().get()) {
+                alternateFunctionActive.set(!alternateFunctionActive.get());
             } else {
-                if (getShiftActive().get()) {
-                    alternateFunctionActive.set(true);
-                    actionTakenFlag.set(true);
-                    oled.functionInfo(getPadInfo(), info2.getName(shiftActive.get()), info2.getDetail());
-                } else {
-                    oled.functionInfo(getPadInfo(), info1.getName(shiftActive.get()), info1.getDetail());
-                    mainValue.set(true);
-                }
+                alternateFunctionActive.set(false);
             }
+            boolean isAlternateFunctionActive = alternateFunctionActive.get();
+
+            mainValue.set(!alternateFunctionActive.get());
+            altValue.set(alternateFunctionActive.get());
+
+            actionTakenFlag.set(true);
+            oled.functionInfo(
+                getPadInfo(),
+                isAlternateFunctionActive ? info2.getName(false) : info1.getName(false),
+                isAlternateFunctionActive ? info2.getDetail() : info1.getDetail()
+            );
         }
 
         if (!pressed) {
             mainValue.set(false);
-            altValue.set(false);
-            if (!actionTakenFlag.get()) {
-                alternateFunctionActive.set(false);
+            if (!alternateFunctionActive.get()) {
+                altValue.set(false);
             }
+
             actionTakenFlag.set(false);
             oled.clearScreenDelayed();
         }
