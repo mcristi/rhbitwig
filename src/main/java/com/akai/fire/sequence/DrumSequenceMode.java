@@ -10,11 +10,8 @@ import com.akai.fire.display.OledDisplay;
 import com.akai.fire.display.OledDisplay.TextJustification;
 import com.akai.fire.lights.BiColorLightState;
 import com.akai.fire.lights.RgbLigthState;
-import com.bitwig.extension.controller.api.CursorTrack;
-import com.bitwig.extension.controller.api.MultiStateHardwareLight;
-import com.bitwig.extension.controller.api.NoteStep;
+import com.bitwig.extension.controller.api.*;
 import com.bitwig.extension.controller.api.NoteStep.State;
-import com.bitwig.extension.controller.api.PinnableCursorClip;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
 import com.bitwig.extensions.framework.values.StepViewPosition;
@@ -24,12 +21,17 @@ import java.util.stream.Collectors;
 
 public class DrumSequenceMode extends Layer {
 
+
     private final IntSetValue heldSteps = new IntSetValue();
     private final Set<Integer> addedSteps = new HashSet<>();
     private final Set<Integer> modifiedSteps = new HashSet<>();
     private final HashMap<Integer, NoteStep> expectedNoteChanges = new HashMap<>();
+    // Maintain fractional offsets for held notes.
+    private final Map<NoteStep, Double> fractionalOffsets = new HashMap<>();
+
 
     private final NoteStep[] assignments = new NoteStep[32];
+    private final double originalStepSize = 1.0 / 16.0;
 
     private final OledDisplay oled;
 
@@ -71,6 +73,7 @@ public class DrumSequenceMode extends Layer {
     private int blinkState;
 
     public DrumSequenceMode(final AkaiFireDrumSeqExtension driver) {
+
         super(driver.getLayers(), "DRUM_SEQUENCE_LAYER");
         oled = driver.getOled();
         mainLayer = new Layer(getLayers(), getName() + "_MAIN");
@@ -272,10 +275,24 @@ public class DrumSequenceMode extends Layer {
         }
     }
 
+    // Declare a field to hold the original (normal) step size.
+   // private final double originalStepSize = 1.0 / 16.0; // one grid step = 1/16 beat (a 64th note)
+
+    // Modify your movePattern method to choose between whole and fractional shifting:
     private void movePattern(final boolean pressed, final int dir) {
         if (pressed) {
             return;
         }
+        if (isPadBeingHeld()) {
+            movePatternFractional(dir);
+
+        } else {
+            movePatternFractional(dir);
+        }
+    }
+
+    // Existing whole-step shifting (unchanged):
+    private void movePatternWhole(final int dir) {
         final List<NoteStep> notes = getOnNotes();
         final int availableSteps = positionHandler.getAvailableSteps();
         cursorClip.clearStepsAtY(0, 0);
@@ -293,6 +310,49 @@ public class DrumSequenceMode extends Layer {
             cursorClip.setStep(pos, 0, (int) Math.round(noteStep.velocity() * 127), noteStep.duration());
         }
     }
+
+    // New fractional shifting when a pad is held:
+// Field holding the original (normal) step size.
+// (For example, one grid step = 1/16 beat i.e. a 64th note.)
+
+
+    private void movePatternFractional(final int dir) {
+        // Get the currently active clip (using your existing getCursorClip() method).
+        Clip clip = getCursorClip();
+
+        // Define the normal and fine step sizes.
+        // (Normally one grid step equals 1/16 beat—a 64th note. For fractional moves we use 1/32 beat.)
+        double normalStepSize = 1.0 / 4;
+        double fineStepSize = 1.0 / 64.0;
+
+        // Log the action.
+
+
+        // Temporarily set the clip’s step size to the fine resolution.
+        clip.setStepSize(fineStepSize);
+
+        // Get the held notes using your existing method.
+        List<NoteStep> heldNotes = getHeldNotes();
+        if (heldNotes.isEmpty()) {
+
+        } else {
+            for (NoteStep note : heldNotes) {
+                // Get the current grid index of the note.
+                int x = note.x();
+
+                // Because the step size is now fine, moving by 1 (or -1) moves the note by half a normal step.
+                clip.moveStep(x, 0, dir, 0);
+            }
+        }
+
+        // Restore the clip’s step size to normal.
+        clip.setStepSize(normalStepSize);
+    }
+
+
+
+
+
 
     private BiColorLightState getPinnedState() {
         return cursorTrack.isPinned().get() ? BiColorLightState.HALF : BiColorLightState.OFF;
