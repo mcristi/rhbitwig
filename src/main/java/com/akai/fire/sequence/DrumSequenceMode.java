@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 
 public class DrumSequenceMode extends Layer {
 
+    private final ControllerHost host;
 
     private final IntSetValue heldSteps = new IntSetValue();
     private final Set<Integer> addedSteps = new HashSet<>();
@@ -28,10 +29,10 @@ public class DrumSequenceMode extends Layer {
     private final HashMap<Integer, NoteStep> expectedNoteChanges = new HashMap<>();
     // Maintain fractional offsets for held notes.
     private final Map<NoteStep, Double> fractionalOffsets = new HashMap<>();
-
+    private final Map<Integer, Map<Integer, Integer>> currentNotesInClip = new HashMap<>();
 
     private final NoteStep[] assignments = new NoteStep[32];
-    private final double originalStepSize = 1.0 / 16.0;
+    private final double originalStepSize = 1.0 / 32.0;
 
     private final OledDisplay oled;
 
@@ -44,6 +45,9 @@ public class DrumSequenceMode extends Layer {
 
     private final CursorTrack cursorTrack;
     private final PinnableCursorClip cursorClip;
+    private  Clip cursorClipLauncher;
+
+//    private Clip cursorClipLauncher;
 
     private final StepViewPosition positionHandler;
     private final ResolutionHander resolutionHandler;
@@ -75,6 +79,7 @@ public class DrumSequenceMode extends Layer {
     public DrumSequenceMode(final AkaiFireDrumSeqExtension driver) {
 
         super(driver.getLayers(), "DRUM_SEQUENCE_LAYER");
+        host = driver.getHost();
         oled = driver.getOled();
         mainLayer = new Layer(getLayers(), getName() + "_MAIN");
         shiftLayer = new Layer(getLayers(), getName() + "_SHIFT");
@@ -89,6 +94,17 @@ public class DrumSequenceMode extends Layer {
         cursorTrack.name().markInterested();
         cursorTrack.isPinned().markInterested();
         cursorClip = cursorTrack.createLauncherCursorClip("SQClip", "SQClip", 32, 1);
+        cursorClipLauncher = host.createLauncherCursorClip( 16*8*2*2,128);
+        cursorClipLauncher.setStepSize(1.0 / 64.0);
+        cursorClipLauncher.addStepDataObserver(this::observingNotes);
+        cursorClipLauncher.scrollToKey(0);
+      //  cursorClipLauncher.scrollToKey(0);
+       //cursorClip.addStepDataObserver(this::observingNotes);
+        //ursorClipLauncher = host.createLauncherCursorClip(32, 1);
+      //  cursorClipLauncher.setStepSize(1.0 / 16.0);
+
+      // cursorClip.addStepDataObserver(this::observingNotes);
+
 
         cursorClip.addNoteStepObserver(this::handleNoteStep);
         cursorClip.playingStep().addValueObserver(this::handlePlayingStep);
@@ -98,6 +114,7 @@ public class DrumSequenceMode extends Layer {
             }
         });
         cursorClip.isPinned().markInterested();
+
         positionHandler = new StepViewPosition(cursorClip, 32, "AKAI");
 
         padHandler = new PadHandler(driver, this, mainLayer, muteLayer, soloLayer);
@@ -135,6 +152,25 @@ public class DrumSequenceMode extends Layer {
         mainEncoder.bindEncoder(mainLayer, this::handleMainEncoder);
         mainEncoder.bindTouched(mainLayer, this::handeMainEncoderPress);
     }
+
+
+    private void observingNotes(int x, int y, int stat) {
+        host.println("Observing note: x=" + x + ", y=" + y + ", stat=" + stat);
+        // Get or create the inner map for step x.
+        Map<Integer, Integer> stepNotes = currentNotesInClip.get(x);
+        if (stepNotes == null) {
+            stepNotes = new HashMap<>();
+            currentNotesInClip.put(x, stepNotes);
+        }
+        if (stat == 0) {
+            stepNotes.remove(y);
+            host.println("Removed note at x=" + x + ", y=" + y);
+        } else {
+            stepNotes.put(y, stat);
+            host.println("Stored note at x=" + x + ", y=" + y + ", stat=" + stat);
+        }
+    }
+
 
     private void initModeButtons(final AkaiFireDrumSeqExtension driver) {
         final MultiStateHardwareLight[] stateLights = driver.getStateLights();
@@ -276,7 +312,7 @@ public class DrumSequenceMode extends Layer {
     }
 
     // Declare a field to hold the original (normal) step size.
-   // private final double originalStepSize = 1.0 / 16.0; // one grid step = 1/16 beat (a 64th note)
+    // private final double originalStepSize = 1.0 / 16.0; // one grid step = 1/16 beat (a 64th note)
 
     // Modify your movePattern method to choose between whole and fractional shifting:
     private void movePattern(final boolean pressed, final int dir) {
@@ -284,10 +320,10 @@ public class DrumSequenceMode extends Layer {
             return;
         }
         if (isPadBeingHeld()) {
-            movePatternFractional(dir);
+            movePatternFractional(cursorClipLauncher, dir);
 
         } else {
-            movePatternFractional(dir);
+            movePatternFractional(cursorClipLauncher, dir);
         }
     }
 
@@ -316,43 +352,33 @@ public class DrumSequenceMode extends Layer {
 // (For example, one grid step = 1/16 beat i.e. a 64th note.)
 
 
-    private void movePatternFractional(final int dir) {
-        // Get the currently active clip (using your existing getCursorClip() method).
-        Clip clip = getCursorClip();
 
-        // Define the normal and fine step sizes.
-        // (Normally one grid step equals 1/16 beat—a 64th note. For fractional moves we use 1/32 beat.)
-        double normalStepSize = 1.0 / 4;
-        double fineStepSize = 1.0 / 64.0;
+    private void movePatternFractional(Clip clip, int dir) {
+        // Iterate over a copy of the currentNotesInClip keys (these are in 1/64 resolution)
+        for (Integer x : new ArrayList<>(currentNotesInClip.keySet())) {
+            Map<Integer, Integer> stepNotes = currentNotesInClip.get(x);
+            if (stepNotes == null) continue;
 
-        // Log the action.
+            host.println("Fine x = " + x + " with stepNotes: " + stepNotes);
 
+            // Filter the inner map: only keep entries where stat == 2.
+            List<Integer> filteredY = stepNotes.entrySet().stream()
+                    .filter(entry -> entry.getValue() == 2)
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toList());
 
-        // Temporarily set the clip’s step size to the fine resolution.
-        clip.setStepSize(fineStepSize);
+            if (filteredY.isEmpty()) {
+                host.println("No stat==2 for fine x = " + x);
+                continue;
+            }
 
-        // Get the held notes using your existing method.
-        List<NoteStep> heldNotes = getHeldNotes();
-        if (heldNotes.isEmpty()) {
-
-        } else {
-            for (NoteStep note : heldNotes) {
-                // Get the current grid index of the note.
-                int x = note.x();
-
-                // Because the step size is now fine, moving by 1 (or -1) moves the note by half a normal step.
-                clip.moveStep(x, 0, dir, 0);
+            // For each filtered note at this fine coordinate, move it.
+            for (Integer y : filteredY) {
+                host.println("Moving note at fine x = " + x + " y = " + y);
+                clip.moveStep(x +1, 36, dir, 0);
             }
         }
-
-        // Restore the clip’s step size to normal.
-        clip.setStepSize(normalStepSize);
     }
-
-
-
-
-
 
     private BiColorLightState getPinnedState() {
         return cursorTrack.isPinned().get() ? BiColorLightState.HALF : BiColorLightState.OFF;
@@ -451,9 +477,9 @@ public class DrumSequenceMode extends Layer {
 
             actionTakenFlag.set(true);
             oled.functionInfo(
-                getPadInfo(),
-                isAlternateFunctionActive ? info2.getName(false) : info1.getName(false),
-                isAlternateFunctionActive ? info2.getDetail() : info1.getDetail()
+                    getPadInfo(),
+                    isAlternateFunctionActive ? info2.getName(false) : info1.getName(false),
+                    isAlternateFunctionActive ? info2.getDetail() : info1.getDetail()
             );
         }
 
@@ -499,9 +525,11 @@ public class DrumSequenceMode extends Layer {
     }
 
     List<NoteStep> getHeldNotes() {
-        return heldSteps.stream()//
-                .map(idx -> assignments[idx])//
-                .filter(ns -> ns != null && ns.state() == State.NoteOn) //
+        return heldSteps.stream()
+                // Only use indices within 0 to 31.
+                .filter(idx -> idx >= 0 && idx <= 31)
+                .map(idx -> assignments[idx])
+                .filter(ns -> ns != null && ns.state() == State.NoteOn)
                 .collect(Collectors.toList());
     }
 
@@ -555,6 +583,7 @@ public class DrumSequenceMode extends Layer {
     }
 
     private void handleNoteStep(final NoteStep noteStep) {
+       int jaja =  noteStep.x();
         final int newStep = noteStep.x();
 
         assignments[newStep] = noteStep;
