@@ -45,7 +45,7 @@ public class DrumSequenceMode extends Layer {
 
     private final CursorTrack cursorTrack;
     private final PinnableCursorClip cursorClip;
-    private  Clip cursorClipLauncher;
+    private  Clip bigCursorClip;
 
 //    private Clip cursorClipLauncher;
 
@@ -69,12 +69,14 @@ public class DrumSequenceMode extends Layer {
     private final BooleanValueObject soloActionsTaken = new BooleanValueObject();
 
     private int playingStep;
-    private final double gatePercent = 0.98;
+    // This defines the length
+    private final double gatePercent = 0.48;
     private boolean markIgnoreOrigLen = false;
     private final AccentHandler accentHandler;
     private NoteAction pendingAction;
     private NoteStep copyNote = null;
     private int blinkState;
+
 
     public DrumSequenceMode(final AkaiFireDrumSeqExtension driver) {
 
@@ -94,10 +96,10 @@ public class DrumSequenceMode extends Layer {
         cursorTrack.name().markInterested();
         cursorTrack.isPinned().markInterested();
         cursorClip = cursorTrack.createLauncherCursorClip("SQClip", "SQClip", 32, 1);
-        cursorClipLauncher = host.createLauncherCursorClip( 16*8*2*2,128);
-        cursorClipLauncher.setStepSize(1.0 / 64.0);
-        cursorClipLauncher.addStepDataObserver(this::observingNotes);
-        cursorClipLauncher.scrollToKey(0);
+        bigCursorClip = host.createLauncherCursorClip( 16*8*2*2,128);
+        bigCursorClip.setStepSize(1.0 / 64.0);
+        bigCursorClip.addStepDataObserver(this::observingNotes);
+        bigCursorClip.scrollToKey(0);
       //  cursorClipLauncher.scrollToKey(0);
        //cursorClip.addStepDataObserver(this::observingNotes);
         //ursorClipLauncher = host.createLauncherCursorClip(32, 1);
@@ -154,20 +156,22 @@ public class DrumSequenceMode extends Layer {
     }
 
 
-    private void observingNotes(int x, int y, int stat) {
-        host.println("Observing note: x=" + x + ", y=" + y + ", stat=" + stat);
+    private void observingNotes(int x, int y, int state) {
+
+
+        host.println("Observing note: x=" + x + ", y=" + y + ", stat=" + state);
         // Get or create the inner map for step x.
         Map<Integer, Integer> stepNotes = currentNotesInClip.get(x);
         if (stepNotes == null) {
             stepNotes = new HashMap<>();
             currentNotesInClip.put(x, stepNotes);
         }
-        if (stat == 0) {
+        if (state == State.Empty.ordinal()) {
             stepNotes.remove(y);
             host.println("Removed note at x=" + x + ", y=" + y);
         } else {
-            stepNotes.put(y, stat);
-            host.println("Stored note at x=" + x + ", y=" + y + ", stat=" + stat);
+            stepNotes.put(y, state);
+            host.println("Stored note at x=" + x + ", y=" + y + ", stat=" + state);
         }
     }
 
@@ -215,6 +219,7 @@ public class DrumSequenceMode extends Layer {
         shiftRightButton.bindPressed(mainLayer, p -> movePattern(p, 1), BiColorLightState.HALF, BiColorLightState.OFF);
     }
 
+    //TODO DOGGY
     private void initSequenceSection(final AkaiFireDrumSeqExtension driver) {
         final RgbButton[] rgbButtons = driver.getRgbButtons();
         for (int i = 0; i < 32; i++) {
@@ -320,10 +325,10 @@ public class DrumSequenceMode extends Layer {
             return;
         }
         if (isPadBeingHeld()) {
-            movePatternFractional(cursorClipLauncher, dir);
+            movePatternFractional(bigCursorClip, dir);
 
         } else {
-            movePatternFractional(cursorClipLauncher, dir);
+            movePatternFractional(bigCursorClip, dir);
         }
     }
 
@@ -347,38 +352,103 @@ public class DrumSequenceMode extends Layer {
         }
     }
 
-    // New fractional shifting when a pad is held:
-// Field holding the original (normal) step size.
-// (For example, one grid step = 1/16 beat i.e. a 64th note.)
+    /**
+     * Maps a fine-grid coordinate (0–511) to its corresponding normal note number (1–32)
+     * using our desired mapping. For example, if a fine coordinate is between 57 and 71,
+     * this returns 8; if between 73 and 87, returns 9.
+     */
+    private int mapFineToNormal(int fine) {
+        // Using floorDiv to get proper flooring for negative values.
+        int n = 8 + Math.floorDiv(fine - 57, 16);
+        if (n < 1) {
+            n = 1;
+        }
+        if (n > 32) {
+            n = 32;
+        }
+        return n;
+    }
+
+    /**
+     * Returns the allowed lower bound in the fine grid for a given normal note (1–32).
+     * The mapping is defined so that for normal note 8, lowerBound = 57; for note 9, lowerBound = 73; etc.
+     */
+    private int getAllowedLowerBound(int normalNote) {
+        return Math.max(0, 57 + (normalNote - 8) * 16);
+    }
+
+    /**
+     * Returns the allowed upper bound in the fine grid for a given normal note.
+     * Since each block is 16 fine steps, the difference is 15.
+     */
+    private int getAllowedUpperBound(int normalNote) {
+        return Math.min(511, getAllowedLowerBound(normalNote) + 15);
+    }
+
+    /**
+     * Nudges (moves) notes in the fine grid while keeping them within the allowed
+     * range for their corresponding normal note. The allowed range for a given normal note _n_
+     * is from getAllowedLowerBound(n) to getAllowedUpperBound(n). We only process notes
+     * that have a state of 2 (in our filtered inner map) and only if their normal note is held.
+     */
+
+private void movePatternFractional(Clip clip, int dir) {
+    // Iterate over a copy of the currentNotesInClip keys (fine-grid coordinates: 0–511)
+    for (Integer fineX : new ArrayList<>(currentNotesInClip.keySet())) {
+        Map<Integer, Integer> stepNotes = currentNotesInClip.get(fineX);
+        if (stepNotes == null)
+            continue;
+
+        host.println("Fine x = " + fineX + " with stepNotes: " + stepNotes);
+
+        // Filter inner map: only keep entries where stat == 2.
+        List<Integer> filteredY = stepNotes.entrySet().stream()
+                .filter(entry -> entry.getValue() == State.NoteOn.ordinal())
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+        if (filteredY.isEmpty()) {
+            host.println("No stat==2 for fine x = " + fineX);
+            continue;
+        }
+
+        // Map the current fine coordinate to its normal note (1–32) using our helper.
+        int normalNote = mapFineToNormal(fineX);
+        if (normalNote == -1) {
+            host.println("Fine x = " + fineX + " falls in the gap; skipping.");
+            continue;
+        }
 
 
+       //  Only process if this normal note is held.
+//        if (!heldSteps.stream().anyMatch(idx -> idx == normalNote)) {
+//            host.println("Normal note " + normalNote + " is not held; skipping fine x = " + fineX);
+//            continue;
+//        }
 
-    private void movePatternFractional(Clip clip, int dir) {
-        // Iterate over a copy of the currentNotesInClip keys (these are in 1/64 resolution)
-        for (Integer x : new ArrayList<>(currentNotesInClip.keySet())) {
-            Map<Integer, Integer> stepNotes = currentNotesInClip.get(x);
-            if (stepNotes == null) continue;
+        // Determine the allowed fine coordinate range for this normal note.
+        int lowerBound = getAllowedLowerBound(normalNote);
+        int upperBound = getAllowedUpperBound(normalNote);
 
-            host.println("Fine x = " + x + " with stepNotes: " + stepNotes);
+        // Compute the tentative new fine coordinate by applying the nudge.
+        int tentativeFine = fineX + dir;
+        // Clamp the new fine coordinate within the allowed range.
+        int newFineX = Math.max(lowerBound, Math.min(tentativeFine, upperBound));
+        int delta = newFineX - fineX;
 
-            // Filter the inner map: only keep entries where stat == 2.
-            List<Integer> filteredY = stepNotes.entrySet().stream()
-                    .filter(entry -> entry.getValue() == 2)
-                    .map(Map.Entry::getKey)
-                    .collect(Collectors.toList());
+        host.println("For held normal note " + normalNote + " (allowed fine range "
+                + lowerBound + "-" + upperBound + "): moving note from fine "
+                + fineX + " to " + newFineX + " (delta " + delta + ")");
 
-            if (filteredY.isEmpty()) {
-                host.println("No stat==2 for fine x = " + x);
-                continue;
-            }
-
-            // For each filtered note at this fine coordinate, move it.
-            for (Integer y : filteredY) {
-                host.println("Moving note at fine x = " + x + " y = " + y);
-                clip.moveStep(x +1, 36, dir, 0);
+        // Move each filtered note by the computed delta, wrapping the move in try-catch.
+        for (Integer y : filteredY) {
+            try {
+                clip.moveStep(fineX, 36, delta, 0);
+            } catch (Exception e) {
+                host.errorln("Error moving note at fineX " + fineX + " y = " + y + ": " + e.getMessage());
             }
         }
     }
+}
 
     private BiColorLightState getPinnedState() {
         return cursorTrack.isPinned().get() ? BiColorLightState.HALF : BiColorLightState.OFF;
