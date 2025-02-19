@@ -352,38 +352,50 @@ public class DrumSequenceMode extends Layer {
         }
     }
 
-    /**
-     * Maps a fine-grid coordinate (0–511) to its corresponding normal note number (1–32)
-     * using our desired mapping. For example, if a fine coordinate is between 57 and 71,
-     * this returns 8; if between 73 and 87, returns 9.
-     */
-    private int mapFineToNormal(int fine) {
-        // Using floorDiv to get proper flooring for negative values.
-        int n = 8 + Math.floorDiv(fine - 57, 16);
-        if (n < 1) {
-            n = 1;
-        }
-        if (n > 32) {
-            n = 32;
-        }
-        return n;
-    }
 
     /**
      * Returns the allowed lower bound in the fine grid for a given normal note (1–32).
-     * The mapping is defined so that for normal note 8, lowerBound = 57; for note 9, lowerBound = 73; etc.
+     * For normal note n, we define:
+     *     lowerBound = n * 16 - 7
      */
     private int getAllowedLowerBound(int normalNote) {
-        return Math.max(0, 57 + (normalNote - 8) * 16);
+        return normalNote * 16 - 7;
     }
 
     /**
-     * Returns the allowed upper bound in the fine grid for a given normal note.
-     * Since each block is 16 fine steps, the difference is 15.
+     * Returns the allowed upper bound in the fine grid for a given normal note (1–32).
+     * For normal note n, we define:
+     *     upperBound = n * 16 + 8
+     * (Clamped to 511 since our fine grid goes from 0 to 511.)
      */
     private int getAllowedUpperBound(int normalNote) {
-        return Math.min(511, getAllowedLowerBound(normalNote) + 15);
+        return Math.min(511, normalNote * 16 + 8);
     }
+
+    /**
+     * Maps a fine-grid coordinate (0–511) to its corresponding normal note (pad) number (1–32)
+     * using our desired mapping.
+     * The allowed range for normal note n is from getAllowedLowerBound(n) to getAllowedUpperBound(n).
+     * If the fine coordinate is outside the overall range, returns -1.
+     */
+    private int mapFineToNormal(int fine) {
+        int overallLower = getAllowedLowerBound(1);    // For normal note 1, lower bound = 16 - 7 = 9.
+        int overallUpper = getAllowedUpperBound(32);   // For normal note 32, ideally = 32*16+8 = 520, clamped to 511.
+        if (fine < overallLower || fine > overallUpper) {
+            return -1;
+        }
+        // Using the formula: normalNote = floor((fine + 7) / 16)
+        int normalNote = (fine + 7) / 16;
+        // Clamp to valid range
+        if (normalNote < 1) {
+            normalNote = 1;
+        }
+        if (normalNote > 32) {
+            normalNote = 32;
+        }
+        return normalNote;
+    }
+
 
     /**
      * Nudges (moves) notes in the fine grid while keeping them within the allowed
@@ -392,63 +404,60 @@ public class DrumSequenceMode extends Layer {
      * that have a state of 2 (in our filtered inner map) and only if their normal note is held.
      */
 
-private void movePatternFractional(Clip clip, int dir) {
-    // Iterate over a copy of the currentNotesInClip keys (fine-grid coordinates: 0–511)
-    for (Integer fineX : new ArrayList<>(currentNotesInClip.keySet())) {
-        Map<Integer, Integer> stepNotes = currentNotesInClip.get(fineX);
-        if (stepNotes == null)
-            continue;
+    private void movePatternFractional(Clip clip, int dir) {
+        // Iterate over a copy of the currentNotesInClip keys (fine-grid coordinates: 0–511)
+        for (Integer fineX : new ArrayList<>(currentNotesInClip.keySet())) {
+            Map<Integer, Integer> stepNotes = currentNotesInClip.get(fineX);
+            if (stepNotes == null)
+                continue;
 
-        host.println("Fine x = " + fineX + " with stepNotes: " + stepNotes);
+            host.println("Fine x = " + fineX + " with stepNotes: " + stepNotes);
 
-        // Filter inner map: only keep entries where stat == 2.
-        List<Integer> filteredY = stepNotes.entrySet().stream()
-                .filter(entry -> entry.getValue() == State.NoteOn.ordinal())
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toList());
-        if (filteredY.isEmpty()) {
-            host.println("No stat==2 for fine x = " + fineX);
-            continue;
-        }
+            // Filter inner map: only keep entries where stat == 2.
+            List<Integer> filteredY = stepNotes.entrySet().stream()
+                    .filter(entry -> entry.getValue() == 2)
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toList());
+            if (filteredY.isEmpty()) {
+                host.println("No stat==2 for fine x = " + fineX);
+                continue;
+            }
 
-        // Map the current fine coordinate to its normal note (1–32) using our helper.
-        int normalNote = mapFineToNormal(fineX);
-        if (normalNote == -1) {
-            host.println("Fine x = " + fineX + " falls in the gap; skipping.");
-            continue;
-        }
+            // Map the current fine coordinate to its normal note (1–32)
+            int normalNote = mapFineToNormal(fineX);
+            if (normalNote == -1) {
+                host.println("Fine x = " + fineX + " falls in the gap; skipping.");
+                continue;
+            }
 
+            // (Optional) You could check if this normal note is held; if your heldSteps are numbers 1–32:
+            // if (!heldSteps.contains(normalNote)) { ... }
 
-       //  Only process if this normal note is held.
-//        if (!heldSteps.stream().anyMatch(idx -> idx == normalNote)) {
-//            host.println("Normal note " + normalNote + " is not held; skipping fine x = " + fineX);
-//            continue;
-//        }
+            // Determine the allowed fine coordinate range for this normal note.
+            int lowerBound = getAllowedLowerBound(normalNote);
+            int upperBound = getAllowedUpperBound(normalNote);
 
-        // Determine the allowed fine coordinate range for this normal note.
-        int lowerBound = getAllowedLowerBound(normalNote);
-        int upperBound = getAllowedUpperBound(normalNote);
+            // Compute the tentative new fine coordinate by applying the nudge.
+            int tentativeFine = fineX + dir;
+            // Clamp the new fine coordinate to remain within the allowed block.
+            int newFineX = Math.max(lowerBound, Math.min(tentativeFine, upperBound));
+            int delta = newFineX - fineX;
 
-        // Compute the tentative new fine coordinate by applying the nudge.
-        int tentativeFine = fineX + dir;
-        // Clamp the new fine coordinate within the allowed range.
-        int newFineX = Math.max(lowerBound, Math.min(tentativeFine, upperBound));
-        int delta = newFineX - fineX;
+            host.println("For normal note " + normalNote + " (allowed fine range "
+                    + lowerBound + "-" + upperBound + "): moving note from fine "
+                    + fineX + " to " + newFineX + " (delta " + delta + ")");
 
-        host.println("For held normal note " + normalNote + " (allowed fine range "
-                + lowerBound + "-" + upperBound + "): moving note from fine "
-                + fineX + " to " + newFineX + " (delta " + delta + ")");
-
-        // Move each filtered note by the computed delta, wrapping the move in try-catch.
-        for (Integer y : filteredY) {
-            try {
-                clip.moveStep(fineX, 36, delta, 0);
-            } catch (Exception e) {
-                host.errorln("Error moving note at fineX " + fineX + " y = " + y + ": " + e.getMessage());
+            // Move each filtered note by the computed delta.
+            for (Integer y : filteredY) {
+                try {
+                    clip.moveStep(fineX, 36, delta, 0);
+                } catch (Exception e) {
+                    host.errorln("Error moving note at fineX " + fineX + " y = " + y + ": " + e.getMessage());
+                }
             }
         }
     }
-}
+
 
     private BiColorLightState getPinnedState() {
         return cursorTrack.isPinned().get() ? BiColorLightState.HALF : BiColorLightState.OFF;
