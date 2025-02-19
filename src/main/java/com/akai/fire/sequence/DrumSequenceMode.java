@@ -96,7 +96,7 @@ public class DrumSequenceMode extends Layer {
         cursorTrack.name().markInterested();
         cursorTrack.isPinned().markInterested();
         cursorClip = cursorTrack.createLauncherCursorClip("SQClip", "SQClip", 32, 1);
-        bigCursorClip = host.createLauncherCursorClip( 16*8*2*2,128);
+        bigCursorClip = host.createLauncherCursorClip( 512,128);
         bigCursorClip.setStepSize(1.0 / 64.0);
         bigCursorClip.addStepDataObserver(this::observingNotes);
         bigCursorClip.scrollToKey(0);
