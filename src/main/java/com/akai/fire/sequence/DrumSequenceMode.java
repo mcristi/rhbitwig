@@ -96,17 +96,11 @@ public class DrumSequenceMode extends Layer {
         cursorTrack.name().markInterested();
         cursorTrack.isPinned().markInterested();
         cursorClip = cursorTrack.createLauncherCursorClip("SQClip", "SQClip", 32, 1);
+        // Here we define the bigger clip
         bigCursorClip = host.createLauncherCursorClip( 512,128);
         bigCursorClip.setStepSize(1.0 / 64.0);
         bigCursorClip.addStepDataObserver(this::observingNotes);
         bigCursorClip.scrollToKey(0);
-      //  cursorClipLauncher.scrollToKey(0);
-       //cursorClip.addStepDataObserver(this::observingNotes);
-        //ursorClipLauncher = host.createLauncherCursorClip(32, 1);
-      //  cursorClipLauncher.setStepSize(1.0 / 16.0);
-
-      // cursorClip.addStepDataObserver(this::observingNotes);
-
 
         cursorClip.addNoteStepObserver(this::handleNoteStep);
         cursorClip.playingStep().addValueObserver(this::handlePlayingStep);
@@ -316,10 +310,8 @@ public class DrumSequenceMode extends Layer {
         }
     }
 
-    // Declare a field to hold the original (normal) step size.
-    // private final double originalStepSize = 1.0 / 16.0; // one grid step = 1/16 beat (a 64th note)
 
-    // Modify your movePattern method to choose between whole and fractional shifting:
+    // Modify your movePattern method to choose between whole and fractional shifting: The idea is only move fractional when holding pads
     private void movePattern(final boolean pressed, final int dir) {
         if (pressed) {
             return;
