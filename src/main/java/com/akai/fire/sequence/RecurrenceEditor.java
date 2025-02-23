@@ -7,7 +7,7 @@ import com.akai.fire.control.RgbButton;
 import com.akai.fire.lights.RgbLigthState;
 import com.bitwig.extension.controller.api.NoteStep;
 import com.bitwig.extensions.framework.Layer;
-
+// changed
 public class RecurrenceEditor {
 	private List<NoteStep> editedSteps;
 	private int currentMask = 0;
