@@ -2,3 +2,4 @@
 /${bitwig.extension.directory}/
 .idea
 .DS_Store
+.vscode
