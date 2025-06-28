@@ -135,10 +135,8 @@ public class DrumSequenceMode extends Layer {
 
     private void initModeButtons(final AkaiFireDrumSeqExtension driver) {
         final MultiStateHardwareLight[] stateLights = driver.getStateLights();
-        bindEditButton(driver.getButton(NoteAssign.MUTE_1), "Select", selectHeld, stateLights[0], muteMode,
-                muteActionsTaken);
-        bindEditButton(driver.getButton(NoteAssign.MUTE_2), "Last Step", fixedLengthHeld, stateLights[1], soloMode,
-                soloActionsTaken);
+        bindEditButton(driver.getButton(NoteAssign.MUTE_1), "Select", selectHeld, stateLights[0], null, null);
+        bindEditButton(driver.getButton(NoteAssign.MUTE_2), "Last Step", fixedLengthHeld, stateLights[1], null, null);
         bindEditButton(driver.getButton(NoteAssign.MUTE_3), "Copy", copyHeld, stateLights[2], null, null);
         bindEditButton(driver.getButton(NoteAssign.MUTE_4), "Delete/Reset", deleteHeld, stateLights[3], null, null);
         final BiColorButton deleteButton = driver.getButton(NoteAssign.MUTE_4);
@@ -163,13 +161,40 @@ public class DrumSequenceMode extends Layer {
                         .create());
 
         final BiColorButton muteModeButton = driver.getButton(NoteAssign.DRUM);
-        muteModeButton.bind(mainLayer, muteMode, BiColorLightState.RED_FULL, BiColorLightState.OFF);
+        muteModeButton.bindPressed(mainLayer, pressed -> {
+            if (pressed) {
+                final FunctionInfo info = FunctionInfo.INFO2.get(NoteAssign.MUTE_1);
+                oled.functionInfo(getPadInfo(), info.getName(false), info.getDetail());
+
+                muteMode.set(true);
+            } else {
+                if (!getShiftActive().get()) {
+                    muteMode.set(false);
+                }
+
+                oled.clearScreenDelayed();
+            }
+        }, () -> muteMode.get() ? BiColorLightState.RED_FULL : BiColorLightState.OFF);
+
+
+        final BiColorButton soloModeButton = driver.getButton(NoteAssign.PERFORM);
+        soloModeButton.bindPressed(mainLayer, pressed -> {
+            if (pressed) {
+                final FunctionInfo info = FunctionInfo.INFO2.get(NoteAssign.MUTE_2);
+                oled.functionInfo(getPadInfo(), info.getName(false), info.getDetail());
+
+                soloMode.set(true);
+            } else {
+                if (!getShiftActive().get()) {
+                    soloMode.set(false);
+                }
+
+                oled.clearScreenDelayed();
+            }
+        }, () -> soloMode.get() ? BiColorLightState.AMBER_FULL : BiColorLightState.OFF);
 
         final BiColorButton pinButton = driver.getButton(NoteAssign.ALT);
         pinButton.bindPressed(mainLayer, this::handleClipPinning, this::getPinnedState);
-
-        final BiColorButton soloModeButton = driver.getButton(NoteAssign.PERFORM);
-        soloModeButton.bind(mainLayer, soloMode, BiColorLightState.AMBER_FULL, BiColorLightState.OFF);
 
         final BiColorButton shiftLeftButton = driver.getButton(NoteAssign.BANK_L);
         shiftLeftButton.bindPressed(mainLayer, p -> movePattern(p, -1), BiColorLightState.HALF, BiColorLightState.OFF);

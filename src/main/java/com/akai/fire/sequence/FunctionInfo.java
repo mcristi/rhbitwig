@@ -16,7 +16,7 @@ public class FunctionInfo { // TODO this has to be a Display info
 				new FunctionInfo("Copy", "Pad: from selected\nClip: from selected\nStep: Copy steps", "Copy -opvals"));
 		INFO1.put(NoteAssign.MUTE_4,
 				new FunctionInfo("Delete", "Pad: clear notes\nClip: clear notes\nEncoder: reset value"));
-		INFO2.put(NoteAssign.MUTE_1, new FunctionInfo("Mute", "Pad: Mute\nNotes: mute notes"));
+		INFO2.put(NoteAssign.MUTE_1, new FunctionInfo("Mute", "Pad: Mute"));
 		INFO2.put(NoteAssign.MUTE_2, new FunctionInfo("Solo", "Pad: Solo"));
 	}
 
