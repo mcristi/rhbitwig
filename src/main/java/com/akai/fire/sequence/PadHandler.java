@@ -385,7 +385,25 @@ public class PadHandler {
     }
 
     public void activateView(final int typeIndex, final String paramName) {
-        displayTarget.setTypeIndex(typeIndex, paramName);
+        String realParamName = paramName;
+
+        if (paramName == null) {
+            // Try to fetch the real parameter name from the active remote controls page.
+            CursorRemoteControlsPage remotePage = parent.getActiveRemoteControlsPage();
+
+            // For macro parameters, our typeIndex starts at 4.
+            int offset = 4;
+            int remoteParamIndex = typeIndex - offset;
+
+            if (remoteParamIndex >= 0 && remoteParamIndex < remotePage.getParameterCount()) {
+                Parameter parameter = remotePage.getParameter(remoteParamIndex);
+                if (parameter != null) {
+                    realParamName = parameter.name().get();
+                }
+            }
+        }
+
+        displayTarget.setTypeIndex(typeIndex, realParamName);
         displayTarget.activate();
     }
 
@@ -409,6 +427,12 @@ public class PadHandler {
     public void bindPadMacros(final Layer layer) {
         for (final PadContainer pad : pads) {
             pad.bindMacros(layer);
+        }
+    }
+
+    public void bindPadMacros2(final Layer layer) {
+        for (final PadContainer pad : pads) {
+            pad.bindMacros2(layer);
         }
     }
 

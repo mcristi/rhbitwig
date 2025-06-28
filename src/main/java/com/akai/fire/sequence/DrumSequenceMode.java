@@ -15,6 +15,7 @@ import com.bitwig.extension.controller.api.MultiStateHardwareLight;
 import com.bitwig.extension.controller.api.NoteStep;
 import com.bitwig.extension.controller.api.NoteStep.State;
 import com.bitwig.extension.controller.api.PinnableCursorClip;
+import com.bitwig.extension.controller.api.CursorRemoteControlsPage;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
 import com.bitwig.extensions.framework.values.StepViewPosition;
@@ -69,6 +70,8 @@ public class DrumSequenceMode extends Layer {
     private NoteAction pendingAction;
     private NoteStep copyNote = null;
     private int blinkState;
+
+    private CursorRemoteControlsPage activeRemoteControlsPage;
 
     public DrumSequenceMode(final AkaiFireDrumSeqExtension driver) {
         super(driver.getLayers(), "DRUM_SEQUENCE_LAYER");
@@ -149,8 +152,15 @@ public class DrumSequenceMode extends Layer {
         accentButton.bindPressed(mainLayer, accentHandler::handlePressed, accentHandler::getLightState);
 
         final BiColorButton shiftButton = driver.getButton(NoteAssign.SHIFT);
-        shiftButton.bind(mainLayer, shiftActive, BiColorLightState.GREEN_HALF, BiColorLightState.OFF);
-        shiftButton.bindPressed(mainLayer, resolutionHandler::handlePressed, resolutionHandler::getLightState);
+        shiftButton.bindPressed(mainLayer, pressed -> {
+            if (pressed) {
+                shiftActive.set(true);
+                oled.detailInfo("Shift", "+ pad: toggle colors\n+ mode: alt mode\n+ select: grid size\n+ knob: fine adjust\n+ mute/solo: pin");
+            } else {
+                shiftActive.set(false);
+                oled.clearScreenDelayed();
+            }
+        }, BiColorLightState.GREEN_HALF, BiColorLightState.OFF);
 
         final BiColorButton clipLaunchModeButton = driver.getButton(NoteAssign.NOTE);
         clipLaunchModeButton.bindToggle(mainLayer, clipLaunchModeQuant, BiColorLightState.AMBER_FULL,
@@ -336,7 +346,7 @@ public class DrumSequenceMode extends Layer {
     private void handleMainEncoder(final int inc) {
         if (accentHandler.isHolding()) {
             accentHandler.handleMainEncoder(inc);
-        } else if (resolutionHandler.isHolding()) {
+        } else if (getShiftActive().get()) {
             resolutionHandler.handleMainEncoder(inc);
         } else {
             padHandler.handleMainEncoder(inc);
@@ -346,7 +356,7 @@ public class DrumSequenceMode extends Layer {
     private void handeMainEncoderPress(final boolean press) {
         if (accentHandler.isHolding()) {
             accentHandler.handeMainEncoderPress(press);
-        } else if (resolutionHandler.isHolding()) {
+        } else if (getShiftActive().get()) {
             resolutionHandler.handeMainEncoderPress(press);
         }
     }
@@ -642,4 +652,13 @@ public class DrumSequenceMode extends Layer {
     public PadHandler getPadHandler() {
         return padHandler;
     }
+
+    public void setActiveRemoteControlsPage(final CursorRemoteControlsPage remoteControlsPage) {
+        this.activeRemoteControlsPage = remoteControlsPage;
+    }
+
+    public CursorRemoteControlsPage getActiveRemoteControlsPage() {
+        return activeRemoteControlsPage;
+    }
+
 }

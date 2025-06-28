@@ -12,7 +12,8 @@ public enum EncoderMode {
             new EncoderAccess[]{NoteStepAccess.REPEATCURVE, NoteStepAccess.REPEAT_VEL_CRV, //
                     NoteStepAccess.REPEAT_VEL_END, NoteStepAccess.OCCURENCE}),
     USER_1(BiColorLightState.MODE_USER1, "1: Level\n2: Pan\n3: Fx1\n4: Fx2", new EncoderAccess[]{}),
-	USER_2(BiColorLightState.MODE_USER2, "1: Attack / Tune\n2: Decay / Decay \n3: Sustain / Param 1\n4: Release / Param 2", new EncoderAccess[]{});
+	USER_2(BiColorLightState.MODE_USER2, "1: Attack / Macro 1\n2: Decay / Macro 2\n3: Sustain / Macro 3\n4: Release / Macro 4", new EncoderAccess[]{}),
+	USER_2_SHIFT(BiColorLightState.MODE_USER2, "1: Macro 5\n2: Macro 6\n3: Macro 7\n4: Macro 8", new EncoderAccess[]{});
 
     private final BiColorLightState state;
     private final String info;

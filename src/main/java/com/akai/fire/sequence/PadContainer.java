@@ -48,6 +48,10 @@ class PadContainer {
     private final ParameterDisplayBinding macro2Binding;
     private final ParameterDisplayBinding macro3Binding;
     private final ParameterDisplayBinding macro4Binding;
+    private final ParameterDisplayBinding macro5Binding;
+    private final ParameterDisplayBinding macro6Binding;
+    private final ParameterDisplayBinding macro7Binding;
+    private final ParameterDisplayBinding macro8Binding;
 
     public PadContainer(final PadHandler padHandler, final int index, final DrumPad pad,
                         final BooleanValueObject playing) {
@@ -81,12 +85,24 @@ class PadContainer {
         volumeBinding = new ParameterDisplayBinding(0, index, pad.volume(), padHandler.getDiplayTarget(), false);
         panBinding = new ParameterDisplayBinding(1, index, pad.pan(), padHandler.getDiplayTarget(), true);
 
-        remoteControls = pad.createDeviceBank(1).getDevice(0).createCursorRemoteControlsPage(4);
+        remoteControls = pad.createDeviceBank(1).getDevice(0).createCursorRemoteControlsPage(8);
+        remoteControls.getName().markInterested();
+        remoteControls.pageCount().markInterested();
+        remoteControls.pageNames().markInterested();
 
         macro1Binding = new ParameterDisplayBinding(4, index, remoteControls.getParameter(0), padHandler.getDiplayTarget(), false);
         macro2Binding = new ParameterDisplayBinding(5, index, remoteControls.getParameter(1), padHandler.getDiplayTarget(), false);
         macro3Binding = new ParameterDisplayBinding(6, index, remoteControls.getParameter(2), padHandler.getDiplayTarget(), false);
         macro4Binding = new ParameterDisplayBinding(7, index, remoteControls.getParameter(3), padHandler.getDiplayTarget(), false);
+        macro5Binding = new ParameterDisplayBinding(8, index, remoteControls.getParameter(4), padHandler.getDiplayTarget(), false);
+        macro6Binding = new ParameterDisplayBinding(9, index, remoteControls.getParameter(5), padHandler.getDiplayTarget(), false);
+        macro7Binding = new ParameterDisplayBinding(10, index, remoteControls.getParameter(6), padHandler.getDiplayTarget(), false);
+        macro8Binding = new ParameterDisplayBinding(11, index, remoteControls.getParameter(7), padHandler.getDiplayTarget(), false);
+
+        for (int i = 0; i < remoteControls.getParameterCount(); i++) {
+            remoteControls.getParameter(i).value().markInterested();
+            remoteControls.getParameter(i).name().markInterested();
+        }
     }
 
 
@@ -105,6 +121,13 @@ class PadContainer {
         layer.addBinding(macro4Binding);
     }
 
+    public void bindMacros2(final Layer layer) {
+        layer.addBinding(macro5Binding);
+        layer.addBinding(macro6Binding);
+        layer.addBinding(macro7Binding);
+        layer.addBinding(macro8Binding);
+    }
+
     public RgbLigthState getPadColor() {
         return padColor;
     }
@@ -121,6 +144,7 @@ class PadContainer {
         this.selected = selected;
         if (this.selected) {
             padHandler.executePadSelection(this);
+            padHandler.parent.setActiveRemoteControlsPage(remoteControls);
         }
     }
 
@@ -193,6 +217,18 @@ class PadContainer {
             case 7:
                 macro4Binding.modify(amount);
                 break;
+            case 8:
+                macro5Binding.modify(amount);
+                break;
+            case 9:
+                macro6Binding.modify(amount);
+                break;
+            case 10:
+                macro7Binding.modify(amount);
+                break;
+            case 11:
+                macro8Binding.modify(amount);
+                break;
             default:
                 break;
         }
@@ -223,6 +259,14 @@ class PadContainer {
                 break;
             case 7:
                 macro4Binding.update();
+            case 8:
+                macro5Binding.update();
+            case 9:
+                macro6Binding.update();
+            case 10:
+                macro7Binding.update();
+            case 11:
+                macro8Binding.update();
                 break;
             default:
                 break;

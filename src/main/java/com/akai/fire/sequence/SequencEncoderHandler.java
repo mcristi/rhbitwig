@@ -27,6 +27,7 @@ public class SequencEncoderHandler extends Layer {
 	private final Layer mixerShiftLayer;
 	private final Layer user1Layer;
 	private final Layer user2Layer;
+	private final Layer user2ShiftLayer;
 
 	private Layer currentLayer;
 	private final OledDisplay oled;
@@ -66,12 +67,14 @@ public class SequencEncoderHandler extends Layer {
 		mixerShiftLayer = new Layer(driver.getLayers(), "ENC_SHIFT_MIXER_LAYER");
 		user1Layer = new Layer(driver.getLayers(), "ENC_USER1_LAYER");
 		user2Layer = new Layer(driver.getLayers(), "ENC_USER2_LAYER");
+		user2ShiftLayer = new Layer(driver.getLayers(), "ENC_SHIFT_USER2_LAYER");
 		encoders = driver.getEncoders();
 		assign(EncoderMode.CHANNEL, channelLayer, encoders);
 		assign(EncoderMode.MIXER, mixerLayer, encoders);
 		assign(EncoderMode.MIXER_SHIFT, mixerShiftLayer, encoders);
 		assignUser1Params(EncoderMode.USER_1, user1Layer, encoders);
 		assignUser2Params(EncoderMode.USER_2, user2Layer, encoders);
+		assignUser2ShiftParams(EncoderMode.USER_2_SHIFT, user2ShiftLayer, encoders);
 		currentLayer = channelLayer;
 		final BiColorButton modeButon = driver.getButton(NoteAssign.KNOB_MODE);
 		modeButon.bindPressed(this, this::handleModeAdvance, this::modeToLight);
@@ -113,16 +116,38 @@ public class SequencEncoderHandler extends Layer {
 		for (int i = 0; i < encoders.length; i++) {
 			int index = i;
 			encoders[i].bindEncoder(layer, inc -> handleParam(index + 4, inc));
-			encoders[i].bindTouched(layer, touched -> handleTouchParam(index + 4, touched, user2ParamNames[index]));
+			encoders[i].bindTouched(layer, touched -> handleTouchParam(index + 4, touched, null));
 			padHandler.bindPadMacros(layer);
 		}
 	}
 
+	private void assignUser2ShiftParams(final EncoderMode mode, final Layer layer, final TouchEncoder[] encoders) {
+		modeMapping.put(mode, layer);
+		for (int i = 0; i < encoders.length; i++) {
+			int index = i;
+			encoders[i].bindEncoder(layer, inc -> handleParam(index + 8, inc));
+			encoders[i].bindTouched(layer, touched -> handleTouchParam(index + 8, touched, null));
+			padHandler.bindPadMacros2(layer);
+		}
+	}
+
+
 	public EncoderMode nextMode() {
-		if (encoderMode == EncoderMode.CHANNEL) {
-			if (parent.isShiftHeld()) { // select MIXER_SHIFT on shift + mode
+		if (parent.isShiftHeld()) {
+			if (encoderMode == EncoderMode.MIXER) {
 				return EncoderMode.MIXER_SHIFT;
+			} else if (encoderMode == EncoderMode.MIXER_SHIFT) {
+				return EncoderMode.MIXER;
 			}
+
+			if (encoderMode == EncoderMode.USER_2) {
+				return EncoderMode.USER_2_SHIFT;
+			} else if (encoderMode == EncoderMode.USER_2_SHIFT) {
+				return EncoderMode.USER_2;
+			}
+		}
+
+		if (encoderMode == EncoderMode.CHANNEL) {
 			return EncoderMode.MIXER;
 		} else if (encoderMode == EncoderMode.MIXER || encoderMode == EncoderMode.MIXER_SHIFT) {
 			return EncoderMode.USER_1;

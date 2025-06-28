@@ -43,19 +43,19 @@ public class ResolutionHander {
 	}
 
 	public void handleMainEncoder(final int inc) {
-		if (!buttonHeld) {
-			return;
-		}
 		final int index = resValue();
 		final int newValue = index + inc;
 		if (newValue >= 0 && newValue < GRID_RATES.length) {
 			parent.getPositionHandler().setGridResolution(GRID_RATES[newValue]);
 			parent.getOled().valueInfo("Grid", GRID_RATES_STR[newValue]);
 		}
+		parent.getOled().clearScreenDelayed();
 	}
 
 	public void handeMainEncoderPress(final boolean press) {
-
+		final int index = resValue();
+		parent.getOled().valueInfo("Grid", GRID_RATES_STR[index]);
+		parent.getOled().clearScreenDelayed();
 	}
 
 }
