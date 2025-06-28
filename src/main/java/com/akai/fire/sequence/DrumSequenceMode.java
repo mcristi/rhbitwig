@@ -152,6 +152,7 @@ public class DrumSequenceMode extends Layer {
 
         final BiColorButton shiftButton = driver.getButton(NoteAssign.SHIFT);
         shiftButton.bind(mainLayer, shiftActive, BiColorLightState.GREEN_HALF, BiColorLightState.OFF);
+        shiftButton.bindPressed(mainLayer, resolutionHandler::handlePressed, resolutionHandler::getLightState);
 
         final BiColorButton clipLaunchModeButton = driver.getButton(NoteAssign.NOTE);
         clipLaunchModeButton.bindToggle(mainLayer, clipLaunchModeQuant, BiColorLightState.AMBER_FULL,
@@ -161,14 +162,14 @@ public class DrumSequenceMode extends Layer {
                                 TextJustification.CENTER)//
                         .create());
 
-        final BiColorButton retrigButton = driver.getButton(NoteAssign.DRUM);
-        retrigButton.bind(mainLayer, this::retrigger, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_HALF);
+        final BiColorButton muteModeButton = driver.getButton(NoteAssign.DRUM);
+        muteModeButton.bind(mainLayer, muteMode, BiColorLightState.RED_FULL, BiColorLightState.OFF);
 
         final BiColorButton pinButton = driver.getButton(NoteAssign.ALT);
         pinButton.bindPressed(mainLayer, this::handleClipPinning, this::getPinnedState);
 
-        final BiColorButton resolutionButton = driver.getButton(NoteAssign.PERFORM);
-        resolutionButton.bindPressed(mainLayer, resolutionHandler::handlePressed, resolutionHandler::getLightState);
+        final BiColorButton soloModeButton = driver.getButton(NoteAssign.PERFORM);
+        soloModeButton.bind(mainLayer, soloMode, BiColorLightState.AMBER_FULL, BiColorLightState.OFF);
 
         final BiColorButton shiftLeftButton = driver.getButton(NoteAssign.BANK_L);
         shiftLeftButton.bindPressed(mainLayer, p -> movePattern(p, -1), BiColorLightState.HALF, BiColorLightState.OFF);
@@ -543,6 +544,10 @@ public class DrumSequenceMode extends Layer {
 
     public void retrigger() {
         cursorClip.launch();
+    }
+
+    public void stop() {
+        cursorClip.getTrack().stop();
     }
 
     public StepViewPosition getPositionHandler() {
