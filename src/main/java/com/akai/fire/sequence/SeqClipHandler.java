@@ -108,16 +108,18 @@ public class SeqClipHandler {
         final boolean hasContent = slot.hasContent().get();
         if (hasContent) {
             if (parent.isDeleteHeld()) {
-                if (parent.isShiftHeld()) { // SHIFT + DELETE => remove clip
-                    slot.deleteObject();
-                } else { // SHIFT + DELETE => clear all steps
-                    final int previous = selectedSlotIndex;
-                    slot.select();
-                    cursorClip.clearSteps();
-                    if (previous != -1) {
-                        slotBank.getItemAt(previous).select();
-                    }
-                }
+                // NOTE: cursorClip.clearSteps removes the automations as well, so we avoid using it
+                slot.deleteObject();
+//                if (parent.isShiftHeld()) { // SHIFT + DELETE => remove clip
+//                    slot.deleteObject();
+//                } else { // DELETE => clear all steps
+//                    final int previous = selectedSlotIndex;
+//                    slot.select();
+//                    cursorClip.clearSteps();
+//                    if (previous != -1) {
+//                        slotBank.getItemAt(previous).select();
+//                    }
+//                }
             } else if (parent.isCopyHeld()) { // copies note
                 if (selectedSlotIndex != -1 && selectedSlotIndex != index) {
                     slot.replaceInsertionPoint().copySlotsOrScenes(slotBank.getItemAt(selectedSlotIndex));
@@ -136,7 +138,23 @@ public class SeqClipHandler {
                     slot.replaceInsertionPoint().copySlotsOrScenes(slotBank.getItemAt(selectedSlotIndex));
                 }
             } else {
-                slot.createEmptyClip(4);
+                int prevClipIndex = index - 1;
+                int nonEmptyClipIndex = -1;
+
+                while (nonEmptyClipIndex == -1 && prevClipIndex > -1) {
+                    final ClipLauncherSlot scene = slotBank.getItemAt(prevClipIndex);
+                    if (scene.hasContent().get()) {
+                        nonEmptyClipIndex = prevClipIndex;
+                    }
+                    prevClipIndex--;
+                }
+
+                if (nonEmptyClipIndex == -1) {
+                    slot.createEmptyClip(4);
+                } else {
+                    slot.replaceInsertionPoint().copySlotsOrScenes(slotBank.getItemAt(nonEmptyClipIndex));
+                    slot.select();
+                }
             }
         }
     }

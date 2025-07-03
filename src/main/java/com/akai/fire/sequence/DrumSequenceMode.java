@@ -138,10 +138,10 @@ public class DrumSequenceMode extends Layer {
 
     private void initModeButtons(final AkaiFireDrumSeqExtension driver) {
         final MultiStateHardwareLight[] stateLights = driver.getStateLights();
-        bindEditButton(driver.getButton(NoteAssign.MUTE_1), "Select", selectHeld, stateLights[0], null, null, BiColorLightState.OFF, BiColorLightState.AMBER_FULL);
-        bindEditButton(driver.getButton(NoteAssign.MUTE_2), "Last Step", fixedLengthHeld, stateLights[1], null, null, BiColorLightState.OFF, BiColorLightState.AMBER_FULL);
-        bindEditButton(driver.getButton(NoteAssign.MUTE_3), "Copy", copyHeld, stateLights[2], null, null, BiColorLightState.AMBER_HALF, BiColorLightState.AMBER_FULL);
-        bindEditButton(driver.getButton(NoteAssign.MUTE_4), "Delete/Reset", deleteHeld, stateLights[3], null, null, BiColorLightState.RED_HALF, BiColorLightState.RED_FULL);
+        bindEditButton(driver.getButton(NoteAssign.MUTE_1), "Select", selectHeld, stateLights[0], null, null, BiColorLightState.OFF, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_FULL);
+        bindEditButton(driver.getButton(NoteAssign.MUTE_2), "Last Step", fixedLengthHeld, stateLights[1], null, null, BiColorLightState.OFF, BiColorLightState.AMBER_FULL, BiColorLightState.RED_FULL);
+        bindEditButton(driver.getButton(NoteAssign.MUTE_3), "Copy", copyHeld, stateLights[2], null, null, BiColorLightState.AMBER_HALF, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_FULL);
+        bindEditButton(driver.getButton(NoteAssign.MUTE_4), "Delete/Reset", deleteHeld, stateLights[3], null, null, BiColorLightState.RED_HALF, BiColorLightState.RED_FULL, BiColorLightState.RED_FULL);
         final BiColorButton deleteButton = driver.getButton(NoteAssign.MUTE_4);
         deleteButton.bind(mainLayer, deleteHeld, BiColorLightState.GREEN_FULL, BiColorLightState.OFF);
     }
@@ -380,14 +380,14 @@ public class DrumSequenceMode extends Layer {
 
     private void bindEditButton(final BiColorButton button, final String name, final BooleanValueObject value,
                                 final MultiStateHardwareLight stateLight, final BooleanValueObject altValue,
-                                final BooleanValueObject altActionHappenedFlag, final BiColorLightState color, final BiColorLightState pressedColor) {
+                                final BooleanValueObject altActionHappenedFlag, final BiColorLightState color, final BiColorLightState pressedColor, final BiColorLightState shiftPressedColor) {
         if (altValue == null) {
             final FunctionInfo info1 = FunctionInfo.INFO1.get(button.getNoteAssign());
             button.bind(mainLayer, value, BiColorLightState.GREEN_FULL, BiColorLightState.OFF);
             mainLayer.bindLightState(() -> BiColorLightState.AMBER_HALF, stateLight);
             value.addValueObserver(active -> handleEditValueChanged(button, active, info1));
             mainLayer.bindLightState(
-                    () -> button.isPressed() ? pressedColor : color, stateLight);
+                    () -> button.isPressed() ? (isShiftHeld() ? shiftPressedColor : pressedColor) : color, stateLight);
         } else {
             final BooleanValueObject alternateFunctionActive = new BooleanValueObject();
             final FunctionInfo info1 = FunctionInfo.INFO1.get(button.getNoteAssign());

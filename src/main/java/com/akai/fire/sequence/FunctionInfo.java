@@ -11,11 +11,11 @@ public class FunctionInfo { // TODO this has to be a Display info
 
 	static {
 		INFO1.put(NoteAssign.MUTE_1, new FunctionInfo("Select", "Pad: select Pad\nClip: select clip"));
-		INFO1.put(NoteAssign.MUTE_2, new FunctionInfo("Last Step", "Step: set last step"));
+		INFO1.put(NoteAssign.MUTE_2, new FunctionInfo("Last Step", "Step: set last step\nShift+step: duplicate"));
 		INFO1.put(NoteAssign.MUTE_3,
-				new FunctionInfo("Copy", "Pad: from selected\nClip: from selected\nStep: Copy steps", "Copy -opvals"));
+				new FunctionInfo("Copy", "Pad: from selected\nClip: from selected\nStep: Copy steps"));
 		INFO1.put(NoteAssign.MUTE_4,
-				new FunctionInfo("Delete", "Pad: clear notes\nClip: clear notes\nEncoder: reset value"));
+				new FunctionInfo("Delete", "Pad: clear notes\nClip: delete clip"));
 		INFO2.put(NoteAssign.MUTE_1, new FunctionInfo("Mute", "Pad: Mute"));
 		INFO2.put(NoteAssign.MUTE_2, new FunctionInfo("Solo", "Pad: Solo"));
 	}
