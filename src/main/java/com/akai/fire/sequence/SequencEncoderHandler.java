@@ -318,7 +318,7 @@ public class SequencEncoderHandler extends Layer {
 	private double incStep(final int inc, final double stepLen, final double amount) {
 		double newStepLength;
 		newStepLength = stepLen + amount * inc;
-		// TODO figure out snapping
+		// maybe figure out snapping
 //		final double roundValue = Math.round(newStepLength);
 //		final double diff = Math.abs(newStepLength - roundValue);
 //		if (diff < amount) {

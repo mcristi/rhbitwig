@@ -172,9 +172,18 @@ public class PadHandler {
     void executeCopy(final List<NoteStep> notes, final boolean copyParams) {
         cursorClip.clearStepsAtY(0, 0);
         for (final NoteStep noteStep : notes) {
-            // TODO: this is an API bug
-            cursorClip.setStep(noteStep.x(), 0, 100, 0.25);
-//            cursorClip.setStep(noteStep.x(), 0, (int) (noteStep.velocity() * 127), noteStep.duration());
+            double duration = noteStep.duration();
+            if (duration == 0) {
+                // TODO: this is an API bug. duration() returns 0
+                duration = 0.25;
+            }
+            double velocity = noteStep.velocity() * 127;
+            if (velocity == 0) {
+                // TODO: this is an API bug. velocity() returns 0
+                velocity = 100;
+            }
+            cursorClip.setStep(noteStep.x(), 0, (int) velocity, duration);
+
             if (copyParams) {
                 parent.registerExpectedNoteChange(noteStep.x(), noteStep);
             }

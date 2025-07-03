@@ -5,7 +5,7 @@ import java.util.Map;
 
 import com.akai.fire.NoteAssign;
 
-public class FunctionInfo { // TODO this has to be a Display info
+public class FunctionInfo {
 	public static final Map<NoteAssign, FunctionInfo> INFO1 = new HashMap<>();
 	public static final Map<NoteAssign, FunctionInfo> INFO2 = new HashMap<>();
 

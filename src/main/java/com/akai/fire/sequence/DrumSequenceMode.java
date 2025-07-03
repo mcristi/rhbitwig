@@ -148,7 +148,7 @@ public class DrumSequenceMode extends Layer {
 
     private void initButtonBehaviour(final AkaiFireDrumSeqExtension driver) {
 
-        final BiColorButton accentButton = driver.getButton(NoteAssign.STEP_SEQ); // TODO combine with encoder
+        final BiColorButton accentButton = driver.getButton(NoteAssign.STEP_SEQ);
         accentButton.bindPressed(mainLayer, accentHandler::handlePressed, accentHandler::getLightState);
 
         final BiColorButton shiftButton = driver.getButton(NoteAssign.SHIFT);
@@ -542,8 +542,12 @@ public class DrumSequenceMode extends Layer {
     }
 
     private void applyValues(final NoteStep dest, final NoteStep src) {
-        // TODO: this is a bug, somewhere the chance is lost
-        dest.setChance(1); // src.chance()
+        double chance = src.chance();
+        if (chance == 0) {
+            // TODO: this is an API bug. chance() returns 0
+            chance = 1;
+        }
+        dest.setChance(chance);
         dest.setTimbre(src.timbre());
         dest.setPressure(src.pressure());
         dest.setRepeatCount(src.repeatCount());
