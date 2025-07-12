@@ -16,6 +16,7 @@ import com.bitwig.extension.controller.api.NoteStep;
 import com.bitwig.extension.controller.api.NoteStep.State;
 import com.bitwig.extension.controller.api.PinnableCursorClip;
 import com.bitwig.extension.controller.api.CursorRemoteControlsPage;
+import com.bitwig.extension.controller.api.ControllerHost;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
 import com.bitwig.extensions.framework.values.StepViewPosition;
@@ -72,6 +73,8 @@ public class DrumSequenceMode extends Layer {
     private int blinkState;
 
     private CursorRemoteControlsPage activeRemoteControlsPage;
+
+    public ControllerHost host;
 
     public DrumSequenceMode(final AkaiFireDrumSeqExtension driver) {
         super(driver.getLayers(), "DRUM_SEQUENCE_LAYER");
@@ -134,6 +137,8 @@ public class DrumSequenceMode extends Layer {
         mainEncoder.setStepSize(0.4);
         mainEncoder.bindEncoder(mainLayer, this::handleMainEncoder);
         mainEncoder.bindTouched(mainLayer, this::handeMainEncoderPress);
+
+        host = driver.host;
     }
 
     private void initModeButtons(final AkaiFireDrumSeqExtension driver) {

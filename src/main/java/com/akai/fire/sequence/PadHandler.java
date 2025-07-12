@@ -427,6 +427,16 @@ public class PadHandler {
         selectedPad.modifyValue(typeIndex, inc, parent.isShiftHeld());
     }
 
+    public void setSampleValue(final int inc) {
+        double value = inc * (1 / 127.0);
+        selectedPad.setSampleValue(value);
+    }
+
+    public double getSampleValue() {
+        double sampleValue = selectedPad.getSampleValue() * 127;
+        return Math.round(sampleValue * 10.0) / 10.0;
+    }
+
     public void bindPadParameters(final Layer layer) {
         for (final PadContainer pad : pads) {
             pad.bindParameters(layer);

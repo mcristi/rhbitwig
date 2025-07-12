@@ -234,6 +234,14 @@ class PadContainer {
         }
     }
 
+    public void setSampleValue(final double amount) {
+        macro8Binding.modify(amount);
+    }
+
+    public double getSampleValue() {
+        return macro8Binding.getValue();
+    }
+
     public void updateDisplay(final int typeIndex) {
         switch (typeIndex) {
             case 0:

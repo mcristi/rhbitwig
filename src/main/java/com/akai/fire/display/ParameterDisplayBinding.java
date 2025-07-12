@@ -54,6 +54,10 @@ public class ParameterDisplayBinding extends Binding<Parameter, DisplayTarget> {
 		}
 	}
 
+	public double getValue() {
+		return getSource().value().get();
+	}
+
 	public void update() {
 		getTarget().update(index, typeIndex, rawValue, displayValue, bipolar);
 	}

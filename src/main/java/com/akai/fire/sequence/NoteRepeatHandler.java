@@ -32,6 +32,7 @@ public class NoteRepeatHandler {
 		arp.octaves().set(0);
 		arp.humanize().set(0);
 		arp.isFreeRunning().set(false);
+		arp.isEnabled().markInterested();
 	}
 
 	BiColorLightState getLightState() {
@@ -59,10 +60,18 @@ public class NoteRepeatHandler {
 	}
 
 	void handleMainEncoder(final int inc) {
-		final int newValue = selectedArpIndex + inc;
-		if (newValue >= 0 && newValue < ARP_RATES.length) {
-			selectedArpIndex = newValue;
-			setNoteRateValue(newValue);
+ 		if (arp.isEnabled().get()) {
+			final int newValue = selectedArpIndex + inc;
+			if (newValue >= 0 && newValue < ARP_RATES.length) {
+				selectedArpIndex = newValue;
+				setNoteRateValue(newValue);
+			}
+		} else {
+			parent.getPadHandler().setSampleValue(inc);
+			parent.host.scheduleTask(() -> {
+				parent.getOled().valueInfo("Sample", "#" + parent.getPadHandler().getSampleValue());
+				parent.getOled().clearScreenDelayed();
+			}, 100);
 		}
 	}
 

@@ -29,3 +29,8 @@
 - Activate layer by dedicated `Mute` button. (instead of resolution button) 
 - Layer is active while the button is pressed. Pin the layer by pressing Shift + Mute.
 - Keep clip colors in mute mode
+
+
+### Select knob
+- Select knob: Increase the 8th param (Select for sampler) of the drum rack device
+- Note Repeat enabled + Select knob: change note repeat rate value

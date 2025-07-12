@@ -51,7 +51,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
 
     private final BooleanValueObject shiftActive = new BooleanValueObject();
     private OledDisplay oled;
-    private ControllerHost host;
+    public ControllerHost host;
     private TouchEncoder mainEncoder;
 
     protected AkaiFireDrumSeqExtension(final AkaiFireDrumSeqDefinition definition, final ControllerHost host) {
