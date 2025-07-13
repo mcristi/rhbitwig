@@ -71,7 +71,7 @@ public class NoteRepeatHandler {
 			parent.host.scheduleTask(() -> {
 				parent.getOled().valueInfo("Sample", "#" + parent.getPadHandler().getSampleValue());
 				parent.getOled().clearScreenDelayed();
-			}, 100);
+			}, 0);
 		}
 	}
 
