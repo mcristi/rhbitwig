@@ -150,10 +150,10 @@ public class DrumSequenceMode extends Layer {
     private void initModeButtons(final AkaiFireDrumSeqExtension driver) {
         final MultiStateHardwareLight[] stateLights = driver.getStateLights();
         bindEditButton(driver.getButton(NoteAssign.MUTE_1), "Select", selectHeld, stateLights[0], null, null, BiColorLightState.OFF, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_FULL);
-        bindEditButton(driver.getButton(NoteAssign.MUTE_2), "Last Step", fixedLengthHeld, stateLights[1], null, null, BiColorLightState.OFF, BiColorLightState.AMBER_FULL, BiColorLightState.RED_FULL);
-        bindEditButton(driver.getButton(NoteAssign.MUTE_3), "Copy", copyHeld, stateLights[2], null, null, BiColorLightState.AMBER_HALF, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_FULL);
-        bindEditButton(driver.getButton(NoteAssign.MUTE_4), "Delete/Reset", deleteHeld, stateLights[3], null, null, BiColorLightState.RED_HALF, BiColorLightState.RED_FULL, BiColorLightState.RED_FULL);
-        final BiColorButton deleteButton = driver.getButton(NoteAssign.MUTE_4);
+        bindEditButton(driver.getButton(NoteAssign.MUTE_2), "Copy", copyHeld, stateLights[1], null, null, BiColorLightState.AMBER_HALF, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_FULL);
+        bindEditButton(driver.getButton(NoteAssign.MUTE_3), "Delete/Reset", deleteHeld, stateLights[2], null, null, BiColorLightState.RED_HALF, BiColorLightState.RED_FULL, BiColorLightState.RED_FULL);
+        bindEditButton(driver.getButton(NoteAssign.MUTE_4), "Last Step", fixedLengthHeld, stateLights[3], null, null, BiColorLightState.OFF, BiColorLightState.AMBER_FULL, BiColorLightState.RED_FULL);
+        final BiColorButton deleteButton = driver.getButton(NoteAssign.MUTE_3);
         deleteButton.bind(mainLayer, deleteHeld, BiColorLightState.GREEN_FULL, BiColorLightState.OFF);
     }
 
