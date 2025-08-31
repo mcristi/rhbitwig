@@ -132,6 +132,12 @@ public class DrumSequenceMode extends Layer {
                 copyNote = null;
             }
         });
+        selectHeld.addValueObserver(held -> {
+            if (!held) {
+                heldSteps.removeAll();
+                modifiedSteps.clear();
+            }
+        });
 
         final TouchEncoder mainEncoder = driver.getMainEncoder();
         mainEncoder.setStepSize(0.4);
@@ -229,6 +235,10 @@ public class DrumSequenceMode extends Layer {
     private void handleSeqSelection(final int index, final boolean pressed) {
         final NoteStep note = assignments[index];
         if (!pressed) {
+            if (selectHeld.get()) {
+                return;
+            }
+
             heldSteps.remove(index);
             if (copyHeld.get() || fixedLengthHeld.get()) {
                 // do nothing
@@ -242,10 +252,13 @@ public class DrumSequenceMode extends Layer {
             addedSteps.remove(index);
         } else {
             heldSteps.add(index);
+
             if (fixedLengthHeld.get()) {
                 stepActionFixedLength(index);
             } else if (copyHeld.get()) {
                 handleNoteCopyAction(index, note);
+            } else if (selectHeld.get()) {
+                // do nothing
             } else {
                 if (note == null || note.state() == State.Empty || note.state() == State.NoteSustain) {
                     cursorClip.setStep(index, 0, accentHandler.getCurrenVel(),
@@ -287,7 +300,9 @@ public class DrumSequenceMode extends Layer {
                 return emptyNoteState(index);
             }
 
-            if (copyNote != null && copyNote.x() == index) {
+            if ((copyNote != null && copyNote.x() == index) ||
+                (isSelectHeld() && heldSteps.contains(index))
+            ) {
                 if (blinkState % 4 < 2) {
                     return RgbLigthState.GRAY_1;
                 }

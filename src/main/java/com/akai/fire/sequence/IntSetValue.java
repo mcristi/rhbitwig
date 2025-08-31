@@ -40,5 +40,18 @@ public class IntSetValue {
             sizeListener.forEach(l -> l.handleChange(newSize));
         }
     }
+
+    public boolean contains(final int index) {
+        return values.contains(index);
+    }
+
+    public void removeAll() {
+        final int oldSize = values.size();
+        values.clear();
+        final int newSize = 0;
+        if (oldSize != newSize) {
+            sizeListener.forEach(l -> l.handleChange(newSize));
+        }
+    }
     
 }
