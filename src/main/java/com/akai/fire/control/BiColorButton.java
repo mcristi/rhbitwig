@@ -8,6 +8,7 @@ import com.akai.fire.NoteAssign;
 import com.akai.fire.display.DisplayInfo;
 import com.akai.fire.display.OledDisplay;
 import com.akai.fire.lights.BiColorLightState;
+import com.bitwig.extension.controller.api.HardwareActionBindable;
 import com.bitwig.extension.controller.api.HardwareButton;
 import com.bitwig.extension.controller.api.MidiIn;
 import com.bitwig.extension.controller.api.MultiStateHardwareLight;
@@ -71,12 +72,11 @@ public class BiColorButton {
 		layer.bindLightState(() -> hwButton.isPressed().get() ? onColor : offColor, light);
 	}
 
-	public void bind(final Layer layer, final Runnable action, final BiColorLightState onColor,
-			final BiColorLightState offColor) {
-		layer.bind(hwButton, hwButton.pressedAction(), () -> action.run());
-		hwButton.isPressed().markInterested();
-		layer.bindLightState(() -> hwButton.isPressed().get() ? onColor : offColor, light);
-	}
+    public void bind(final Layer layer, final HardwareActionBindable action, final Supplier<BiColorLightState> lightSource) {
+        layer.bind(hwButton, hwButton.pressedAction(), action);
+        hwButton.isPressed().markInterested();
+        layer.bindLightState(() -> lightSource.get(), light);
+    }
 
 	public void bind(final Layer layer, final SettableBooleanValue value, final BiColorLightState onColor,
 			final BiColorLightState offColor) {

@@ -125,7 +125,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         transport.isClipLauncherOverdubEnabled().markInterested();
         transport.isMetronomeEnabled().markInterested();
         final BiColorButton playButton = addButton(NoteAssign.PLAY);
-        playButton.bindPressed(mainLayer, this::retrigger, this::getPlayState);
+        playButton.bind(mainLayer, transport.continuePlaybackAction(), this::getPlayState);
         final BiColorButton recButton = addButton(NoteAssign.REC);
         recButton.bindPressed(mainLayer, this::toggleRec, this::getOverdubState);
         final BiColorButton stopButton = addButton(NoteAssign.STOP);
@@ -203,7 +203,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         if (!pressed) {
             return;
         }
-        drumSequenceMode.stop();
+        transport.stop();
     }
 
     private void toggleRec(final boolean pressed) {
