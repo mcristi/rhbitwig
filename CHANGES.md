@@ -11,7 +11,7 @@
 - Accent value is reflected on the note repeat
 - Metronome is mapped to metronome button
 - Pin track instead of pin clip
-- Stop: stops the clip playing on the track, not the transport
+- Start: continue play instead of start
 - Shift + Select knob: change grid resolution
 - Shift + Select mode: toggle normal / alternative mode
 - 
@@ -30,6 +30,9 @@
 - Layer is active while the button is pressed. Pin the layer by pressing Shift + Mute.
 - Keep clip colors in mute mode
 
+### Copy mode
+- Copy mode: copy the first selected step to the clipboard
+- Paste mode: while keeping the copy button pressed paste the copied step to the selected current step
 
 ### Select knob
 - Select knob: Increase the 8th param (Select for sampler) of the drum rack device

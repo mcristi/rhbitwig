@@ -11,6 +11,7 @@ public class ParameterDisplayBinding extends Binding<Parameter, DisplayTarget> {
 	private final int index;
 	private final int typeIndex;
 	private final boolean bipolar;
+    private double discreteAccumulator = 0.0;
 
 	public ParameterDisplayBinding(final int typeIndex, final int index, final Parameter source,
 			final DisplayTarget target, final boolean bipolar) {
@@ -20,6 +21,7 @@ public class ParameterDisplayBinding extends Binding<Parameter, DisplayTarget> {
 		this.bipolar = bipolar;
 		source.value().addValueObserver(this::handleRawValue);
 		source.displayedValue().addValueObserver(this::handleDisplayValue);
+		source.discreteValueCount().markInterested();
 	}
 
 	private void handleRawValue(final double rawValue) {
@@ -47,11 +49,30 @@ public class ParameterDisplayBinding extends Binding<Parameter, DisplayTarget> {
 
 	public void modify(final double inc) {
 		final SettableRangedValue value = getSource().value();
-		final double preValue = value.get();
-		final double newValue = Math.min(1, Math.max(0, preValue + inc));
-		if (preValue != newValue) {
-			value.setImmediately(newValue);
-		}
+
+        // Check if this is a discrete parameter by checking if it has enumerated values
+        if (getSource().discreteValueCount().get() > 0) {
+            final boolean isShiftMode = Math.abs(inc) <= 0.005; // SHIFT_INC is 0.001
+            discreteAccumulator += inc;
+            final double stepThreshold = isShiftMode ? 0.03 : 0.3;
+
+            if (Math.abs(discreteAccumulator) >= stepThreshold) {
+                if (discreteAccumulator > 0) {
+                    getSource().inc(1);
+                    discreteAccumulator -= stepThreshold;
+                } else {
+                    getSource().inc(-1);
+                    discreteAccumulator += stepThreshold;
+                }
+            }
+        } else {
+            // For continuous parameters, use the existing logic
+            final double preValue = value.get();
+            final double newValue = Math.min(1, Math.max(0, preValue + inc));
+            if (preValue != newValue) {
+                value.setImmediately(newValue);
+            }
+        }
 	}
 
 	public double getValue() {
