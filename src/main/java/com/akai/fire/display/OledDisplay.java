@@ -162,7 +162,7 @@ public class OledDisplay {
 			final String displayValue, final boolean biPolar) {
 		sendString(0, TextJustification.CENTER, 0, element);
 		sendString(2, TextJustification.CENTER, 1, parameterName);
-		sendString(2, TextJustification.CENTER, 3, displayValue);
+		sendString(2, TextJustification.CENTER, 3, displayValue.replace("±", "+/-"));
 		sendString(0, TextJustification.CENTER, 5, "");
 		if (biPolar) {
 			barValue(value - 0.5, -0.5, 0.5);

@@ -129,7 +129,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         final BiColorButton recButton = addButton(NoteAssign.REC);
         recButton.bindPressed(mainLayer, this::toggleRec, this::getOverdubState);
         final BiColorButton stopButton = addButton(NoteAssign.STOP);
-        stopButton.bindPressed(mainLayer, this::stopAction, BiColorLightState.RED_FULL);
+        stopButton.bindPressed(mainLayer, this::stopAction, this::getStopState);
 
         final BiColorButton shiftButton = addButton(NoteAssign.SHIFT);
         shiftButton.bind(mainLayer, shiftActive, BiColorLightState.RED_HALF, BiColorLightState.OFF);
@@ -186,6 +186,10 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
 
     private BiColorLightState getPlayState() {
         return transport.isPlaying().get() ? BiColorLightState.GREEN_FULL : BiColorLightState.OFF;
+    }
+
+    private BiColorLightState getStopState() {
+        return transport.isPlaying().get() ? BiColorLightState.OFF : BiColorLightState.GREEN_HALF;
     }
 
     private BiColorLightState getOverdubState() {
