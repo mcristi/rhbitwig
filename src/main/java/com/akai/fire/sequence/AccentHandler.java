@@ -4,7 +4,7 @@ import com.akai.fire.lights.BiColorLightState;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
 
 public class AccentHandler {
-	private static final int ACCENT_OFFSET = 11;
+	private static final int ACCENT_OFFSET = 5;
 	private int velStandard = 100;
 	private int velAccented = 127;
 	private final BooleanValueObject accentActive = new BooleanValueObject();
