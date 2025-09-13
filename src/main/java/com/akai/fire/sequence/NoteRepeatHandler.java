@@ -67,11 +67,41 @@ public class NoteRepeatHandler {
 				setNoteRateValue(newValue);
 			}
 		} else {
-			parent.getPadHandler().setSampleValue(inc);
-			parent.host.scheduleTask(() -> {
-				parent.getOled().valueInfo("Sample", "#" + parent.getPadHandler().getSampleValue());
-				parent.getOled().clearScreenDelayed();
-			}, 0);
+            if (parent.getPadHandler().selectedPad == null) {
+                parent.getOled().paramInfo("Sample", "No selection", "Select a pad first");
+                parent.getOled().clearScreenDelayed();
+                return;
+            }
+
+            String param1Name = parent.getPadHandler().selectedPad.getParam1Name();
+            if (param1Name.toLowerCase().contains("tune")) {
+                parent.getPadHandler().setTuneValue(inc);
+                parent.host.scheduleTask(() -> {
+                    parent.getOled().valueInfo("Tune", "" + parent.getPadHandler().getTuneValue());
+                    parent.getOled().clearScreenDelayed();
+                }, 0);
+                return;
+            }
+
+            String param2Name = parent.getPadHandler().selectedPad.getParam2Name();
+            if (param2Name.toLowerCase().contains("semis")) {
+                parent.getPadHandler().setSemisValue(inc);
+                parent.host.scheduleTask(() -> {
+                    parent.getOled().valueInfo("Semitones", "" + parent.getPadHandler().getSemisValue());
+                    parent.getOled().clearScreenDelayed();
+                }, 0);
+                return;
+            }
+
+            String param8Name = parent.getPadHandler().selectedPad.getParam8Name();
+            if (param8Name.toLowerCase().contains("select")) {
+                parent.getPadHandler().setSampleValue(inc);
+                parent.host.scheduleTask(() -> {
+                    parent.getOled().valueInfo("Sample#", "" + parent.getPadHandler().getSampleValue());
+                    parent.getOled().clearScreenDelayed();
+                }, 0);
+                return;
+            }
 		}
 	}
 

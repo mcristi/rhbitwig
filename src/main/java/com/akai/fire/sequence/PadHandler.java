@@ -427,13 +427,50 @@ public class PadHandler {
         selectedPad.modifyValue(typeIndex, inc, parent.isShiftHeld());
     }
 
+    public void setTuneValue(final int inc) {
+        if (selectedPad == null) {
+            return;
+        }
+        double value = inc * (1 / 24.0);
+        selectedPad.setMacro1Value(value);
+    }
+
+    public double getTuneValue() {
+        if (selectedPad == null) {
+            return 0.0;
+        }
+        double value = selectedPad.getMacro1Value();
+        return Math.round((float)(value - 0.5) * 24);
+    }
+
+    public void setSemisValue(final int inc) {
+        if (selectedPad == null) {
+            return;
+        }
+        selectedPad.increaseMacro2Value(inc);
+    }
+
+    public double getSemisValue() {
+        if (selectedPad == null) {
+            return 0;
+        }
+        double value = selectedPad.getMacro2Value();
+        return Math.round((value - 0.5) * 96);
+    }
+
     public void setSampleValue(final int inc) {
+        if (selectedPad == null) {
+            return;
+        }
         double value = inc * (1 / 127.0);
-        selectedPad.setSampleValue(value);
+        selectedPad.setMacro8Value(value);
     }
 
     public double getSampleValue() {
-        double sampleValue = selectedPad.getSampleValue() * 127;
+        if (selectedPad == null) {
+            return 0;
+        }
+        double sampleValue = selectedPad.getMacro8Value() * 127;
         return Math.round(sampleValue * 10.0) / 10.0;
     }
 

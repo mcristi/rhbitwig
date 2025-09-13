@@ -90,6 +90,11 @@ class PadContainer {
         remoteControls.pageCount().markInterested();
         remoteControls.pageNames().markInterested();
 
+        for (int i = 0; i < remoteControls.getParameterCount(); i++) {
+            remoteControls.getParameter(i).value().markInterested();
+            remoteControls.getParameter(i).name().markInterested();
+        }
+
         macro1Binding = new ParameterDisplayBinding(4, index, remoteControls.getParameter(0), padHandler.getDiplayTarget(), false);
         macro2Binding = new ParameterDisplayBinding(5, index, remoteControls.getParameter(1), padHandler.getDiplayTarget(), false);
         macro3Binding = new ParameterDisplayBinding(6, index, remoteControls.getParameter(2), padHandler.getDiplayTarget(), false);
@@ -98,13 +103,7 @@ class PadContainer {
         macro6Binding = new ParameterDisplayBinding(9, index, remoteControls.getParameter(5), padHandler.getDiplayTarget(), false);
         macro7Binding = new ParameterDisplayBinding(10, index, remoteControls.getParameter(6), padHandler.getDiplayTarget(), false);
         macro8Binding = new ParameterDisplayBinding(11, index, remoteControls.getParameter(7), padHandler.getDiplayTarget(), false);
-
-        for (int i = 0; i < remoteControls.getParameterCount(); i++) {
-            remoteControls.getParameter(i).value().markInterested();
-            remoteControls.getParameter(i).name().markInterested();
-        }
     }
-
 
     public void bindParameters(final Layer layer) {
         layer.addBinding(volumeBinding);
@@ -176,6 +175,30 @@ class PadContainer {
         return pad.name().get();
     }
 
+    public String getParam1Name() {
+        if (remoteControls.getParameterCount() >= 1) {
+            return remoteControls.getParameter(0).name().get();
+        }
+
+        return "";
+    }
+
+    public String getParam2Name() {
+        if (remoteControls.getParameterCount() >= 2) {
+            return remoteControls.getParameter(1).name().get();
+        }
+
+        return "";
+    }
+
+    public String getParam8Name() {
+        if (remoteControls.getParameterCount() >= 8) {
+            return remoteControls.getParameter(7).name().get();
+        }
+
+        return "";
+    }
+
     public RgbLigthState getColor() {
 //        if (!exists) {
 //            return RgbLigthState.OFF;
@@ -234,11 +257,27 @@ class PadContainer {
         }
     }
 
-    public void setSampleValue(final double amount) {
+    public void setMacro1Value(final double amount) {
+        macro1Binding.modify(amount);
+    }
+
+    public double getMacro1Value() {
+        return macro1Binding.getValue();
+    }
+
+    public void increaseMacro2Value(final int inc) {
+        macro2Binding.increase(inc);
+    }
+
+    public double getMacro2Value() {
+        return macro2Binding.getValue();
+    }
+
+    public void setMacro8Value(final double amount) {
         macro8Binding.modify(amount);
     }
 
-    public double getSampleValue() {
+    public double getMacro8Value() {
         return macro8Binding.getValue();
     }
 

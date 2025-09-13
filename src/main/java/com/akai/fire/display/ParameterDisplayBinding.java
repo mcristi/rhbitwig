@@ -75,6 +75,10 @@ public class ParameterDisplayBinding extends Binding<Parameter, DisplayTarget> {
         }
 	}
 
+    public void increase(final int inc) {
+        getSource().inc(inc);
+    }
+
 	public double getValue() {
 		return getSource().value().get();
 	}
