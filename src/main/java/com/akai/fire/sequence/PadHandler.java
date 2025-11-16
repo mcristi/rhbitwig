@@ -138,8 +138,21 @@ public class PadHandler {
             } else {
                 pad.pad.selectInEditor();
                 padsHeld.add(pad.index);
+
+                if (parent.isSelectHeld()) {
+                    selectTrackAndPadInstrument(pad);
+                }
             }
         }
+    }
+
+    /**
+     * Selects the drum-rack track and the relevant instrument device
+     * in the currently selected drum chain for the given pad.
+     */
+    private void selectTrackAndPadInstrument(final PadContainer pad) {
+        cursorClip.getTrack().selectInEditor();
+        pad.selectRelevantDevice();
     }
 
     private Color getPadColor(DrumPad pad) {

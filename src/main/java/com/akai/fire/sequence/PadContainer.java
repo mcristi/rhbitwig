@@ -4,6 +4,8 @@ import com.akai.fire.ColorLookup;
 import com.akai.fire.display.ParameterDisplayBinding;
 import com.akai.fire.lights.RgbLigthState;
 import com.bitwig.extension.controller.api.CursorRemoteControlsPage;
+import com.bitwig.extension.controller.api.Device;
+import com.bitwig.extension.controller.api.DeviceBank;
 import com.bitwig.extension.controller.api.DrumPad;
 import com.bitwig.extension.controller.api.Send;
 import com.bitwig.extensions.framework.Layer;
@@ -43,6 +45,7 @@ class PadContainer {
     private final ParameterDisplayBinding panBinding;
     private final ParameterDisplayBinding[] sendBindings = new ParameterDisplayBinding[8];
 
+    private final DeviceBank deviceBank;
     private final CursorRemoteControlsPage remoteControls;
     private final ParameterDisplayBinding macro1Binding;
     private final ParameterDisplayBinding macro2Binding;
@@ -85,7 +88,10 @@ class PadContainer {
         volumeBinding = new ParameterDisplayBinding(0, index, pad.volume(), padHandler.getDiplayTarget(), false);
         panBinding = new ParameterDisplayBinding(1, index, pad.pan(), padHandler.getDiplayTarget(), true);
 
-        remoteControls = pad.createDeviceBank(1).getDevice(0).createCursorRemoteControlsPage(8);
+        deviceBank = pad.createDeviceBank(2);
+        deviceBank.getDevice(1).name().markInterested();
+
+        remoteControls = deviceBank.getDevice(0).createCursorRemoteControlsPage(8);
         remoteControls.getName().markInterested();
         remoteControls.pageCount().markInterested();
         remoteControls.pageNames().markInterested();
@@ -211,6 +217,22 @@ class PadContainer {
 
     public void select() {
         pad.selectInEditor();
+    }
+
+    public void selectFistDevice() {
+        final Device firstDevice = deviceBank.getDevice(0);
+        if (firstDevice != null) {
+            firstDevice.selectInEditor();
+        }
+    }
+
+    public void selectRelevantDevice() {
+        final Device secondDevice = deviceBank.getDevice(1);
+        if (secondDevice.name().get().equals("Komplete Kontrol")) {
+            secondDevice.selectInEditor();
+        } else {
+            this.selectFistDevice();
+        }
     }
 
     public void modifyValue(final int typeIndex, final int inc, final boolean shiftHeld) {

@@ -88,7 +88,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         mainLayer.activate();
         drumSequenceMode.activate();
         host.scheduleTask(this::handlePing, 100);
-        getHost().showPopupNotification("Init Akai Fire: Drum Sequencer");
+        // getHost().showPopupNotification("Init Akai Fire: Drum Sequencer");
     }
 
     private void handlePing() {
@@ -301,7 +301,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
 
     @Override
     public void exit() {
-        getHost().showPopupNotification("Exit Akai Fire Drum Seq");
+        // getHost().showPopupNotification("Exit Akai Fire Drum Seq");
     }
 
     @Override
