@@ -20,6 +20,9 @@
 - New shift mode: User 2 - last 4 macros from the first device in chain
 - Device param names are reflected on the screen
 
+### Select mode
+- Select + Pad: select the relevant instrument device in the currently selected drum chain for the given pad
+
 ### Solo mode
 - Activate layer by dedicated `Solo` button (instead of retrigger button) 
 - Layer is active while the button is pressed. Pin the layer by pressing Shift + Solo.
