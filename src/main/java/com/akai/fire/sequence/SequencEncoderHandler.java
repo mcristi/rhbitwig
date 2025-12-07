@@ -21,7 +21,10 @@ public class SequencEncoderHandler extends Layer {
 
 	private final DrumSequenceMode parent;
 
-	private EncoderMode encoderMode = EncoderMode.CHANNEL;
+	private EncoderMode encoderMode = EncoderMode.USER_1;
+	private EncoderMode stepEncoderMode = EncoderMode.CHANNEL;
+	private EncoderMode padEncoderMode = EncoderMode.USER_1;
+
 	private final Layer channelLayer;
 	private final Layer mixerLayer;
 	private final Layer mixerShiftLayer;
@@ -75,7 +78,7 @@ public class SequencEncoderHandler extends Layer {
 		assignUser1Params(EncoderMode.USER_1, user1Layer, encoders);
 		assignUser2Params(EncoderMode.USER_2, user2Layer, encoders);
 		assignUser2ShiftParams(EncoderMode.USER_2_SHIFT, user2ShiftLayer, encoders);
-		currentLayer = channelLayer;
+		currentLayer = user1Layer;
 		final BiColorButton modeButon = driver.getButton(NoteAssign.KNOB_MODE);
 		modeButon.bindPressed(this, this::handleModeAdvance, this::modeToLight);
 //		parent.getShiftActive().addValueObserver(this::handleShiftChange);
@@ -131,7 +134,6 @@ public class SequencEncoderHandler extends Layer {
 		}
 	}
 
-
 	public EncoderMode nextMode() {
 		if (parent.isShiftHeld()) {
 			if (encoderMode == EncoderMode.MIXER) {
@@ -147,15 +149,32 @@ public class SequencEncoderHandler extends Layer {
 			}
 		}
 
+        // STEP encoder mode
 		if (encoderMode == EncoderMode.CHANNEL) {
+            stepEncoderMode = EncoderMode.MIXER;
 			return EncoderMode.MIXER;
 		} else if (encoderMode == EncoderMode.MIXER || encoderMode == EncoderMode.MIXER_SHIFT) {
-			return EncoderMode.USER_1;
-		} else if (encoderMode == EncoderMode.USER_1) {
-			return EncoderMode.USER_2;
+            stepEncoderMode = EncoderMode.CHANNEL;
+			return EncoderMode.CHANNEL;
 		}
-		return EncoderMode.CHANNEL;
+
+        // PAD encoder mode
+        if (encoderMode == EncoderMode.USER_1) {
+            padEncoderMode = EncoderMode.USER_2;
+			return EncoderMode.USER_2;
+		} else {
+            padEncoderMode = EncoderMode.USER_1;
+            return EncoderMode.USER_1;
+        }
 	}
+
+    public void switchToStepsEncoders() {
+        switchMode(stepEncoderMode);
+    }
+
+    public void switchToPadEncoders() {
+        switchMode(padEncoderMode);
+    }
 
 	private void bindEncoder(final Layer layer, final TouchEncoder encoder, final NoteStepAccess access) {
 		encoder.bindEncoder(layer, inc -> handleMod(inc, access));
@@ -187,11 +206,9 @@ public class SequencEncoderHandler extends Layer {
 			oled.clearScreenDelayed();
 			return;
 		}
-		if (parent.isSelectHeld()) { // display encoder details on select + mode
-			oled.detailInfo("Encoder Mode", encoderMode.getInfo());
-		} else {
-			switchMode(nextMode());
-		}
+        oled.detailInfo("Encoder Mode", encoderMode.getInfo());
+
+        switchMode(nextMode());
 	}
 
 	private void switchMode(final EncoderMode newMode) {

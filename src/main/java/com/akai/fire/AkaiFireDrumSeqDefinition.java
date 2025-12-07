@@ -40,7 +40,7 @@ public class AkaiFireDrumSeqDefinition extends ControllerExtensionDefinition {
 
     @Override
     public String getHardwareModel() {
-        return "Akai Fire";
+        return "Fire";
     }
 
     @Override

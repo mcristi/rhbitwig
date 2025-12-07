@@ -136,6 +136,7 @@ public class DrumSequenceMode extends Layer {
             if (!held) {
                 heldSteps.removeAll();
                 modifiedSteps.clear();
+                encoderLayer.switchToPadEncoders();
             }
         });
 
@@ -250,6 +251,8 @@ public class DrumSequenceMode extends Layer {
                 }
             }
             addedSteps.remove(index);
+
+            encoderLayer.switchToPadEncoders();
         } else {
             heldSteps.add(index);
 
@@ -266,6 +269,8 @@ public class DrumSequenceMode extends Layer {
                     addedSteps.add(index);
                 }
             }
+
+            encoderLayer.switchToStepsEncoders();
         }
     }
 
