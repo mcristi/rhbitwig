@@ -10,29 +10,15 @@ import com.bitwig.extension.controller.api.DrumPad;
 import com.bitwig.extension.controller.api.Send;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
-import com.bitwig.extensions.framework.values.DawColor;
 
 class PadContainer {
 
     private static final double SHIFT_INC = 0.001;
     private static final double REGULAR_INC = 0.025;
 
-    private static final RgbLigthState TR_RED = new RgbLigthState(70, 0, 0, true);
-    private static final RgbLigthState TR_ORANGE = new RgbLigthState(90, 15, 0, true);
-    private static final RgbLigthState TR_YELLOW = new RgbLigthState(110, 55, 0, true);
-    private static final RgbLigthState TR_WHITE = new RgbLigthState(80, 80, 80, true);
-
-    private static final RgbLigthState[] fixedPadColorTable = {TR_RED, TR_RED, TR_RED, TR_RED, //
-            TR_ORANGE, TR_ORANGE, TR_ORANGE, TR_ORANGE, TR_YELLOW, TR_YELLOW, TR_YELLOW, TR_YELLOW, //
-            TR_WHITE, TR_WHITE, TR_WHITE, TR_WHITE};
-
     private final PadHandler padHandler;
 
     private RgbLigthState padColor;
-    private RgbLigthState bitwigPadColor = RgbLigthState.OFF;
-
-    private final RgbLigthState muteColor = ColorLookup.getColor(DawColor.LIGHT_BROWN);
-    private final RgbLigthState soloColor = ColorLookup.getColor(DawColor.BLUISH_GREEN);
 
     final DrumPad pad;
     final int index;
@@ -75,14 +61,15 @@ class PadContainer {
         pad.name().markInterested();
         pad.addIsSelectedInEditorObserver(selected -> handlePadSelection(index, selected));
         pad.exists().addValueObserver(exists -> this.exists = exists);
-        //padColor = fixedPadColorTable[index];
+
         padColor = RgbLigthState.OFF;
         pad.color().addValueObserver((r, g, b) -> {
+            // NOTE: leave the hex here to get Bitwig colors
+//            String hex = pad.color().get().toHex();
             padColor = ColorLookup.getColor(r, g, b);
-            bitwigPadColor = ColorLookup.getColor(r, g, b);
-            // padColor = fixedPadColorTable[index];
+
             if (selected) {
-                this.padHandler.currentPadColor = bitwigPadColor;
+                this.padHandler.currentPadColor = padColor;
             }
         });
         volumeBinding = new ParameterDisplayBinding(0, index, pad.volume(), padHandler.getDiplayTarget(), false);
@@ -137,10 +124,6 @@ class PadContainer {
         return padColor;
     }
 
-    public RgbLigthState getBitwigPadColor() {
-        return bitwigPadColor;
-    }
-
     public int getIndex() {
         return index;
     }
@@ -158,10 +141,9 @@ class PadContainer {
             return RgbLigthState.OFF;
         }
         if (pad.mute().get()) {
-//            return playing.returnTrueFalse(muteColor.getDimmed(), muteColor.getVeryDimmed());
             return playing.returnTrueFalse(padColor.getDimmed(), padColor.getVeryDimmed());
         }
-//        return playing.returnTrueFalse(muteColor.getBrightest(), muteColor);
+
         return playing.returnTrueFalse(padColor.getBrightest(), padColor);
     }
 
@@ -170,10 +152,9 @@ class PadContainer {
             return RgbLigthState.OFF;
         }
         if (pad.solo().get()) {
-//            return playing.returnTrueFalse(soloColor.getBrightest(), soloColor);
             return playing.returnTrueFalse(padColor.getBrightest(), padColor);
         }
-//        return playing.returnTrueFalse(soloColor.getDimmed(), soloColor.getVeryDimmed());
+
         return playing.returnTrueFalse(padColor.getDimmed(), padColor.getVeryDimmed());
     }
 
@@ -206,9 +187,6 @@ class PadContainer {
     }
 
     public RgbLigthState getColor() {
-//        if (!exists) {
-//            return RgbLigthState.OFF;
-//        }
         if (selected) {
             return playing.returnTrueFalse(padColor.getBrightest(), padColor.getBrightend());
         }

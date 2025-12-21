@@ -1,95 +1,71 @@
 package com.akai.fire;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.akai.fire.lights.RgbLigthState;
 import com.bitwig.extension.api.Color;
-import com.bitwig.extensions.framework.values.DawColor;
 
 public class ColorLookup {
-	private static Map<Integer, DawColor> lookupMap = new HashMap<>();
-	private static Map<Integer, RgbLigthState> dc = new HashMap<>();
 
-	static {
-		final DawColor[] colors = DawColor.values();
-		for (final DawColor dawColor : colors) {
-			lookupMap.put(dawColor.getLookupIndex(), dawColor);
-		}
-//		register(DawColor.GRAY, LpColor.GREY_MD);
-//		register(DawColor.GRAY_HALF, LpColor.GREY_HALF);
-//		register(DawColor.LIGHT_GRAY, LpColor.GREY_MD);
-//		register(DawColor.DARK_BROWN, LpColor.AMBER);
-//		register(DawColor.BROWN, LpColor.AMBER);
-//		register(DawColor.ROSE, LpColor.ROSE);
-//		register(DawColor.PURPLE_BLUE, LpColor.BLUE_ORCHID);
-		register(DawColor.RED, new RgbLigthState(70, 0, 0, true));
-		register(DawColor.BLUE, new RgbLigthState(0, 0, 127, true));
-		register(DawColor.LIGHT_BLUE, new RgbLigthState(0, 30, 100, true));
-		register(DawColor.BLUISH_GREEN, new RgbLigthState(0, 60, 100, true));
-		register(DawColor.GREEN, new RgbLigthState(5, 68, 20, true));
-		register(DawColor.COLD_GREEN, new RgbLigthState(0, 50, 5, true));
-		register(DawColor.ORANGE, new RgbLigthState(100, 15, 0, true));
-		register(DawColor.GREEN_BLUE, new RgbLigthState(0, 100, 20, true));
-		register(DawColor.MOSS_GREEN, new RgbLigthState(0, 90, 40, true));
-		register(DawColor.LIGHT_BROWN, new RgbLigthState(70, 70, 0, true));
-		register(DawColor.DARK_BLUE, new RgbLigthState(30, 10, 90, true));
-		register(DawColor.PINK, new RgbLigthState(100, 10, 90, true));
-		register(DawColor.LIGHT_PINK, new RgbLigthState(90, 30, 90, true));
-		register(DawColor.LIGHT_PURPLE, new RgbLigthState(70, 10, 100, true));
-		register(DawColor.PURPLE, new RgbLigthState(80, 0, 80, true));
-		register(DawColor.DARK_GRAY, new RgbLigthState(80, 80, 100, true));
-		register(DawColor.LIGHT_GRAY, new RgbLigthState(90, 90, 110, true));
-		register(DawColor.SILVER, new RgbLigthState(70, 70, 120, true));
-	}
+	private static float SATURATION_SUBTLE_BOOST = 1.3f;
+	private static float SATURATION_MEDIUM_BOOST = 1.5f;
+	private static float SATURATION_VIBRANT_BOOST = 2.0f;
 
-	private static void register(final DawColor dawColor, final RgbLigthState lpColor) {
-		dc.put(dawColor.getLookupIndex(), lpColor);
-	}
+	public static final RgbLigthState getColor(final double r, final double g, final double b) {
+		int red = (int)(r * 127);
+		int green = (int)(g * 127);
+		int blue = (int)(b * 127);
 
-	public static RgbLigthState getColor(final DawColor dawColor) {
-		return dc.getOrDefault(dawColor.getLookupIndex(), RgbLigthState.OFF);
-	}
+		// Boost saturation
+		float[] hsv = rgbToHsv(red, green, blue);
+		hsv[1] = Math.min(1.0f, hsv[1] * SATURATION_MEDIUM_BOOST);
+		int[] saturated = hsvToRgb(hsv[0], hsv[1], hsv[2]);
 
-	public static DawColor getDawColor(final double red, final double green, final double blue) {
-		final int rv = (int) Math.floor(red * 255);
-		final int gv = (int) Math.floor(green * 255);
-		final int bv = (int) Math.floor(blue * 255);
-		return lookupMap.get(rv << 16 | gv << 8 | bv);
-	}
-
-	public static final RgbLigthState getColor(final double red, final double green, final double blue) {
-		final int rv = (int) Math.floor(red * 255);
-		final int gv = (int) Math.floor(green * 255);
-		final int bv = (int) Math.floor(blue * 255);
-		return dc.computeIfAbsent(rv << 16 | gv << 8 | bv, index -> calcRgbState(red, green, blue));
+		return new RgbLigthState(saturated[0], saturated[1], saturated[2], true);
 	}
 
 	public static RgbLigthState getColor(final Color color) {
-		final int rv = (int) Math.floor(color.getRed255());
-		final int gv = (int) Math.floor(color.getGreen255());
-		final int bv = (int) Math.floor(color.getBlue255());
-		return dc.computeIfAbsent(rv << 16 | gv << 8 | bv, index -> calcRgbState(rv, gv, bv));
+		return getColor(color.getRed(), color.getGreen(), color.getBlue());
 	}
 
-	private static RgbLigthState calcRgbState(final double red, final double green, final double blue) {
-		int rfactor = 60;
-		int gfactor = 60;
-		int bfactor = 60;
-		if (red == 1.0) {
-			rfactor = 127;
-		}
-		if (green == 1.0) {
-			gfactor = 127;
-		}
-		if (blue == 1.0) {
-			bfactor = 127;
-		}
-		final byte r = (byte) Math.floor(red * rfactor);
-		final byte g = (byte) Math.floor(green * gfactor);
-		final byte b = (byte) Math.floor(blue * bfactor);
+	private static float[] rgbToHsv(int r, int g, int b) {
+		float rf = r / 127f;
+		float gf = g / 127f;
+		float bf = b / 127f;
 
-		return new RgbLigthState(r, g, b);
+		float max = Math.max(rf, Math.max(gf, bf));
+		float min = Math.min(rf, Math.min(gf, bf));
+		float delta = max - min;
+
+		float h = 0, s = 0, v = max;
+
+		if (delta > 0) {
+			s = delta / max;
+			if (rf == max) h = (gf - bf) / delta + (gf < bf ? 6 : 0);
+			else if (gf == max) h = (bf - rf) / delta + 2;
+			else h = (rf - gf) / delta + 4;
+			h /= 6;
+		}
+
+		return new float[]{h, s, v};
+	}
+
+	private static int[] hsvToRgb(float h, float s, float v) {
+		int i = (int)(h * 6);
+		float f = h * 6 - i;
+		float p = v * (1 - s);
+		float q = v * (1 - f * s);
+		float t = v * (1 - (1 - f) * s);
+
+		float r, g, b;
+		switch (i % 6) {
+			case 0: r = v; g = t; b = p; break;
+			case 1: r = q; g = v; b = p; break;
+			case 2: r = p; g = v; b = t; break;
+			case 3: r = p; g = q; b = v; break;
+			case 4: r = t; g = p; b = v; break;
+			default: r = v; g = p; b = q; break;
+		}
+
+		return new int[]{(int)(r * 127), (int)(g * 127), (int)(b * 127)};
 	}
 
 }
