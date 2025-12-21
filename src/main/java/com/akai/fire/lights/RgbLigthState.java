@@ -8,9 +8,10 @@ import com.bitwig.extension.controller.api.InternalHardwareLightState;
 public class RgbLigthState extends InternalHardwareLightState {
 
 	private static final int ULTRA_DIM_FACTOR = 15;
-	private static final int DIM_FACTOR = 4;
-	private static final int BRIGHT_FACTOR = 20;
-	private static final int MAX_BRIGHT_FACTOR = 50;
+	private static final int DIM_FACTOR = 2;
+	private static final int BRIGHT_FACTOR = 50;
+	private static final int MAX_BRIGHT_FACTOR = 70;
+
 	public static final RgbLigthState OFF = new RgbLigthState(0, 0, 0, true);
 	public static final RgbLigthState PURPLE = new RgbLigthState(80, 0, 80, true);
 	public static final RgbLigthState WHITE = new RgbLigthState(100, 100, 100, true);
@@ -36,9 +37,11 @@ public class RgbLigthState extends InternalHardwareLightState {
 
 	private RgbLigthState(final byte red, final byte green, final byte blue, final boolean variants) {
 		super();
+
 		this.red = red;
 		this.green = green;
 		this.blue = blue;
+
 		if (variants) {
 			dimmed = new RgbLigthState(red / DIM_FACTOR, green / DIM_FACTOR, blue / DIM_FACTOR, false);
 			veryDimmed = new RgbLigthState(red / ULTRA_DIM_FACTOR, green / ULTRA_DIM_FACTOR, blue / ULTRA_DIM_FACTOR,
