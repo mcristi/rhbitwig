@@ -39,7 +39,7 @@
 
 ### Select knob
 - Select knob affects the currently selected drum rack device as follows: 
-  - if 1st in chain is a Sampler: change in steps the 8th param (Select)
+  - if 1st in chain is a Sampler: change in steps the 5th param (Pitch)
   - if 1st in chain is a Drum Device (e.g. V9 Kick): change in steps the 1st param (Tune) 
   - if 1st in chain is Note Transpose: change in steps the 2nd param (Semis)
 - Shift + Select knob: change grid resolution

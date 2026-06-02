@@ -444,6 +444,23 @@ public class PadHandler {
         return Math.round((value - 0.5) * 96);
     }
 
+    public void setPitchValue(final int inc) {
+        if (selectedPad == null) {
+            return;
+        }
+        double value = inc * (1 / 72.0);
+        selectedPad.setMacro5Value(value);
+    }
+
+    public double getPitchValue() {
+        if (selectedPad == null) {
+            return 0.0;
+        }
+        double value = selectedPad.getMacro5Value();
+        return Math.round((float)(value - 0.5) * 72);
+    }
+
+
     public void setSampleValue(final int inc) {
         if (selectedPad == null) {
             return;

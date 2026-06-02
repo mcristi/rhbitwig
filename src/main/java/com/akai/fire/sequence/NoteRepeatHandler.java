@@ -93,15 +93,25 @@ public class NoteRepeatHandler {
                 return;
             }
 
-            String param8Name = parent.getPadHandler().selectedPad.getParam8Name();
-            if (param8Name.toLowerCase().contains("select")) {
-                parent.getPadHandler().setSampleValue(inc);
-                parent.host.scheduleTask(() -> {
-                    parent.getOled().valueInfo("Sample#", "" + parent.getPadHandler().getSampleValue());
-                    parent.getOled().clearScreenDelayed();
-                }, 0);
-                return;
-            }
+			String param5Name = parent.getPadHandler().selectedPad.getParam5Name();
+			if (param5Name.toLowerCase().contains("pitch")) {
+				parent.getPadHandler().setPitchValue(inc);
+				parent.host.scheduleTask(() -> {
+					parent.getOled().valueInfo("Pitch", "" + parent.getPadHandler().getPitchValue());
+					parent.getOled().clearScreenDelayed();
+				}, 0);
+				return;
+			}
+
+//			String param8Name = parent.getPadHandler().selectedPad.getParam8Name();
+//            if (param8Name.toLowerCase().contains("select")) {
+//                parent.getPadHandler().setSampleValue(inc);
+//                parent.host.scheduleTask(() -> {
+//                    parent.getOled().valueInfo("Sample#", "" + parent.getPadHandler().getSampleValue());
+//                    parent.getOled().clearScreenDelayed();
+//                }, 0);
+//                return;
+//            }
 		}
 	}
 

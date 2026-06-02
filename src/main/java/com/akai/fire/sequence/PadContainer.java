@@ -178,6 +178,14 @@ class PadContainer {
         return "";
     }
 
+    public String getParam5Name() {
+        if (remoteControls.getParameterCount() >= 5) {
+            return remoteControls.getParameter(4).name().get();
+        }
+
+        return "";
+    }
+
     public String getParam8Name() {
         if (remoteControls.getParameterCount() >= 8) {
             return remoteControls.getParameter(7).name().get();
@@ -272,6 +280,15 @@ class PadContainer {
     public double getMacro2Value() {
         return macro2Binding.getValue();
     }
+
+    public void setMacro5Value(final double amount) {
+        macro5Binding.modify(amount);
+    }
+
+    public double getMacro5Value() {
+        return macro5Binding.getValue();
+    }
+
 
     public void setMacro8Value(final double amount) {
         macro8Binding.modify(amount);
