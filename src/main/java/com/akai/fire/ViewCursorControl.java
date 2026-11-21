@@ -10,6 +10,8 @@ public class ViewCursorControl {
 	private final CursorTrack cursorTrack;
 	private final PinnableCursorDevice primaryDevice;
 	private final DrumPadBank drumPadBank;
+	// all pads of the Drum Machine, to know what lies on the pages the controller is not showing
+	private final DrumPadBank allDrumPads;
 
 	public ViewCursorControl(final ControllerHost host, final int scenes) {
 		super();
@@ -21,6 +23,9 @@ public class ViewCursorControl {
 		primaryDevice.hasDrumPads().markInterested();
 		primaryDevice.exists().markInterested();
 		drumPadBank = primaryDevice.createDrumPadBank(16);
+		allDrumPads = primaryDevice.createDrumPadBank(128);
+		// only for looking: without this Bitwig marks every pad as controlled
+		allDrumPads.setIndication(false);
 	}
 
 	public CursorTrack getCursorTrack() {
@@ -29,6 +34,10 @@ public class ViewCursorControl {
 
 	public PinnableCursorDevice getPrimaryDevice() {
 		return primaryDevice;
+	}
+
+	public DrumPadBank getAllDrumPads() {
+		return allDrumPads;
 	}
 
 	public DrumPadBank getDrumPadBank() {

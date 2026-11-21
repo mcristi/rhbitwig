@@ -2,6 +2,8 @@
 
 ### Pads
 - Shift + Pad ⇒ cycle and apply color from a predefined color list 
+- The Pattern up / down LEDs are lit only if the page in that direction has at least one pad with a device on it (the buttons still work on empty pages)
+- Pattern up / down shows the keys of the new pad page on the display (e.g. E2 - G3) and how many of its pads are in use
 - Pressing an empty pad of the Drum Machine sets it up for a synth or sample: a Note Transpose followed by an empty Komplete Kontrol (VST3), with a random color from the Shift + Pad list and named after its key (e.g. A#1). The Note Transpose moves the pad's key to C3 (e.g. +14 semitones on A#1), so that samples play at their original pitch
 - Shift + Clip ⇒ cycle and apply color from a predefined color list
 - Pressing a clip pad (new clip, or Copy + clip) whose scene does not exist yet adds the missing scenes to the project first

@@ -36,6 +36,17 @@ public class PadHandler {
     PadContainer selectedPad;
     int selectedPadIndex = -1;
     private int drumScrollOffset;
+    // by key, for all pads of the Drum Machine: has the pad something on it?
+    private final boolean[] padExists = new boolean[128];
+    // highest pad page position at which all 16 pads still are valid keys (0..127)
+    private static final int MAX_SCROLL_POSITION = 128 - 16;
+    // Bitwig's Drum Machine pages are 16 keys from C1 (36) up and down. That leaves a single row of
+    // 4 below the lowest full page and 3 rows above the highest one; a page move never goes there.
+    private static final int LOWEST_FULL_PAGE = 4;
+    private static final int HIGHEST_FULL_PAGE = 100;
+    // Moving the pad page makes Bitwig report the selected pad again at its new position. Until this
+    // time that must not put up the "Selected Pad" screen, the page info is shown instead.
+    private long padPageScrolledUntil = -1;
 
     private final BooleanValueObject[] playing = new BooleanValueObject[16];
     private final BooleanValueObject notePlayingActive = new BooleanValueObject();
@@ -62,6 +73,11 @@ public class PadHandler {
         padBank.canScrollBackwards().markInterested();
         padBank.canScrollForwards().markInterested();
         padBank.scrollPosition().markInterested();
+        final DrumPadBank allPads = control.getAllDrumPads();
+        for (int i = 0; i < padExists.length; i++) {
+            final int key = i;
+            allPads.getItemAt(i).exists().addValueObserver(exists -> padExists[key] = exists);
+        }
 
         setupPlaying(driver.getViewControl());
 
@@ -194,7 +210,7 @@ public class PadHandler {
         if (pad.index != selectedPadIndex) {
             final List<NoteStep> notes = parent.getOnNotes();
             parent.registerPendingAction(new NoteAction(selectedPadIndex, pad.index, Type.COPY_PAD, notes));
-            cursorClip.scrollToKey(drumScrollOffset + pad.index);
+            cursorClip.scrollToKey(Math.min(127, drumScrollOffset + pad.index));
             pad.pad.selectInEditor();
         }
     }
@@ -209,7 +225,9 @@ public class PadHandler {
         displayTarget.setName(selectedPad.getName());
 
         // nothing else follows a pad selection that would clear the display, so time it out here
-        if (parent.getOled().showInfo(padDisplayInfo)) {
+        if (System.currentTimeMillis() < padPageScrolledUntil) {
+            // the selection did not change, only the page: see showPadPage
+        } else if (parent.getOled().showInfo(padDisplayInfo)) {
             parent.getOled().clearScreenDelayed();
         }
 
@@ -231,7 +249,7 @@ public class PadHandler {
 
     public void focusOnSelectedPad() {
         final int padIndex = selectedPad != null ? selectedPad.index : 0;
-        cursorClip.scrollToKey(drumScrollOffset + padIndex);
+        cursorClip.scrollToKey(Math.min(127, drumScrollOffset + padIndex));
     }
 
     public String getPadInfo() {
@@ -356,46 +374,83 @@ public class PadHandler {
         }
     }
 
+    /**
+     * @param dir +1 for up, -1 for down
+     * @return the position a press of Pattern up / down leads to, or -1 if it must not move: a page
+     *         move (16) stays on full 4x4 pages, a move with Shift (4) may use the whole key range
+     */
+    private int scrollTarget(final int dir) {
+        final boolean fine = parent.isShiftHeld();
+        final int target = padBank.scrollPosition().get() + dir * (fine ? 4 : 16);
+        final int min = fine ? 0 : LOWEST_FULL_PAGE;
+        final int max = fine ? MAX_SCROLL_POSITION : HIGHEST_FULL_PAGE;
+        return target >= min && target <= max ? target : -1;
+    }
+
+    /** Lit if the pads that page up would bring in include at least one with a device on it. */
     private BiColorLightState canScrollUp(final BiColorButton button) {
-        if (padBank.scrollPosition().get() + (parent.isShiftHeld() ? 4 : 16) < 128) {
-            if (button.isPressed()) {
-                return BiColorLightState.FULL;
-            }
-            return BiColorLightState.HALF;
+        final int position = padBank.scrollPosition().get();
+        final int target = scrollTarget(1);
+        if (target != -1 && hasPads(position + 16, target + 15)) {
+            return button.isPressed() ? BiColorLightState.FULL : BiColorLightState.HALF;
         }
         return BiColorLightState.OFF;
     }
 
+    /** Lit if the pads that page down would bring in include at least one with a device on it. */
     private BiColorLightState canScrollDown(final BiColorButton button) {
-        if (padBank.scrollPosition().get() - (parent.isShiftHeld() ? 4 : 16) >= 0) {
-            if (button.isPressed()) {
-                return BiColorLightState.FULL;
-            }
-            return BiColorLightState.HALF;
+        final int position = padBank.scrollPosition().get();
+        final int target = scrollTarget(-1);
+        if (target != -1 && hasPads(target, position - 1)) {
+            return button.isPressed() ? BiColorLightState.FULL : BiColorLightState.HALF;
         }
         return BiColorLightState.OFF;
+    }
+
+    /** @return true if a pad with something on it lies on one of the keys from..to (inclusive) */
+    private boolean hasPads(final int from, final int to) {
+        for (int key = Math.max(0, from); key <= Math.min(127, to); key++) {
+            if (padExists[key]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void scrollForward(final boolean pressed) {
         if (!pressed) {
+            parent.getOled().clearScreenDelayed();
             return;
         }
-        if (parent.isShiftHeld()) {
-            padBank.scrollBy(4);
-        } else {
-            padBank.scrollBy(16);
+        final int target = scrollTarget(1);
+        if (target != -1) {
+            padBank.scrollPosition().set(target);
         }
+        showPadPage();
     }
 
     private void scrollBackward(final boolean pressed) {
         if (!pressed) {
+            parent.getOled().clearScreenDelayed();
             return;
         }
-        if (parent.isShiftHeld()) {
-            padBank.scrollBy(-4);
-        } else {
-            padBank.scrollBy(-16);
+        final int target = scrollTarget(-1);
+        if (target != -1) {
+            padBank.scrollPosition().set(target);
         }
+        showPadPage();
+    }
+
+    /** Shows which keys the 16 pads cover now, and how many of them have something on them. */
+    private void showPadPage() {
+        padPageScrolledUntil = System.currentTimeMillis() + 500;
+        // a moment later, when Bitwig has reported the new position and its pads
+        parent.host.scheduleTask(() -> {
+            final String range = PadContainer.keyName(drumScrollOffset) + " - "
+                    + PadContainer.keyName(Math.min(127, drumScrollOffset + 15));
+            final long used = pads.stream().filter(PadContainer::exists).count();
+            parent.getOled().paramInfo("Pad Page", range, used + " of 16 pads used");
+        }, 100);
     }
 
     public DisplayTarget getDiplayTarget() {

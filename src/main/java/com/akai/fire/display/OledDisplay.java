@@ -317,6 +317,10 @@ public class OledDisplay {
 		}
 		if (logoBlock > 0 && System.currentTimeMillis() - logoBlock > 3000) {
 			logoBlock = -1;
+			// take the logo down, unless something else has replaced it already
+			if (inGraphicsMode) {
+				clearScreen();
+			}
 		}
 	}
 
