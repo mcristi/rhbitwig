@@ -17,7 +17,6 @@ import com.bitwig.extensions.framework.Layer;
 public class SequencEncoderHandler extends Layer {
 
 	private final static String[] user1ParamNames = { "Volume", "Panning", "Send 1", "Send 2" };
-	private final static String[] user2ParamNames = { "Attack/Tune", "Decay/Decay", "Sust/Param1", "Decay/Param2" };
 
 	private final DrumSequenceMode parent;
 
@@ -38,6 +37,8 @@ public class SequencEncoderHandler extends Layer {
 	private final TouchEncoder[] encoders;
 
 	private final PadHandler padHandler;
+	// touch state per encoder, tracked across all encoder layers
+	private final boolean[] encoderTouched = new boolean[4];
 
 	@FunctionalInterface
 	interface NoteDoubleGetter {
@@ -81,20 +82,6 @@ public class SequencEncoderHandler extends Layer {
 		currentLayer = user1Layer;
 		final BiColorButton modeButon = driver.getButton(NoteAssign.KNOB_MODE);
 		modeButon.bindPressed(this, this::handleModeAdvance, this::modeToLight);
-//		parent.getShiftActive().addValueObserver(this::handleShiftChange);
-	}
-
-	private void handleShiftChange(final boolean shiftActive) {
-		if (!parent.isActive()) {
-			return;
-		}
-		if (encoderMode == EncoderMode.MIXER_SHIFT || encoderMode == EncoderMode.MIXER) {
-			if (shiftActive) {
-				switchMode(EncoderMode.MIXER_SHIFT);
-			} else {
-				switchMode(EncoderMode.MIXER);
-			}
-		}
 	}
 
 	private void assign(final EncoderMode mode, final Layer layer, final TouchEncoder[] encoders) {
@@ -102,7 +89,7 @@ public class SequencEncoderHandler extends Layer {
 		final EncoderAccess[] assignments = mode.getAssignments();
 		for (int i = 0; i < assignments.length; i++) {
 			if (assignments[i] instanceof NoteStepAccess) {
-				bindEncoder(layer, encoders[i], (NoteStepAccess) assignments[i]);
+				bindEncoder(i, layer, encoders[i], (NoteStepAccess) assignments[i]);
 			}
 		}
 	}
@@ -112,6 +99,7 @@ public class SequencEncoderHandler extends Layer {
 		for (int i = 0; i < encoders.length; i++) {
 			bindPadEncoder(i, layer, encoders[i], user1ParamNames[i]);
 		}
+		padHandler.bindPadParameters(layer);
 	}
 
 	private void assignUser2Params(final EncoderMode mode, final Layer layer, final TouchEncoder[] encoders) {
@@ -120,8 +108,8 @@ public class SequencEncoderHandler extends Layer {
 			int index = i;
 			encoders[i].bindEncoder(layer, inc -> handleParam(index + 4, inc));
 			encoders[i].bindTouched(layer, touched -> handleTouchParam(index + 4, touched, null));
-			padHandler.bindPadMacros(layer);
 		}
+		padHandler.bindPadMacros(layer);
 	}
 
 	private void assignUser2ShiftParams(final EncoderMode mode, final Layer layer, final TouchEncoder[] encoders) {
@@ -130,8 +118,8 @@ public class SequencEncoderHandler extends Layer {
 			int index = i;
 			encoders[i].bindEncoder(layer, inc -> handleParam(index + 8, inc));
 			encoders[i].bindTouched(layer, touched -> handleTouchParam(index + 8, touched, null));
-			padHandler.bindPadMacros2(layer);
 		}
+		padHandler.bindPadMacros2(layer);
 	}
 
 	public EncoderMode nextMode() {
@@ -169,26 +157,53 @@ public class SequencEncoderHandler extends Layer {
 	}
 
     public void switchToStepsEncoders() {
-        switchMode(stepEncoderMode);
+        switchMode(stepEncoderMode, false);
     }
 
     public void switchToPadEncoders() {
-        switchMode(padEncoderMode);
+        // The step layers go inactive here, so an encoder that is still touched will never deliver
+        // its release to them: end the edit states that release would have ended.
+        parent.abortRecurrenceEdit();
+        parent.getLengthDisplay().set(false);
+        switchMode(padEncoderMode, false);
     }
 
-	private void bindEncoder(final Layer layer, final TouchEncoder encoder, final NoteStepAccess access) {
-		encoder.bindEncoder(layer, inc -> handleMod(inc, access));
-		encoder.bindTouched(layer, touched -> handleTouch(touched, access));
+	private void bindEncoder(final int index, final Layer layer, final TouchEncoder encoder,
+			final NoteStepAccess access) {
+		encoder.bindEncoder(layer, inc -> {
+			parent.notifyEncoderUsed();
+			handleMod(inc, access);
+		});
+		encoder.bindTouched(layer, touched -> {
+			trackTouch(index, touched);
+			handleTouch(touched, access);
+		});
+	}
+
+	private void trackTouch(final int index, final boolean touched) {
+		encoderTouched[index] = touched;
+		if (touched) {
+			parent.notifyEncoderUsed();
+		}
+	}
+
+	public boolean isAnyEncoderTouched() {
+		for (final boolean touched : encoderTouched) {
+			if (touched) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void bindPadEncoder(final int index, final Layer layer, final TouchEncoder encoder,
 			final String parameterName) {
 		encoder.bindEncoder(layer, inc -> handleParam(index, inc));
 		encoder.bindTouched(layer, touched -> handleTouchParam(index, touched, parameterName));
-		padHandler.bindPadParameters(layer);
 	}
 
 	private void handleTouchParam(final int index, final Boolean touched, final String parameterName) {
+		trackTouch(index % 4, touched);
 		if (touched) {
 			padHandler.activateView(index, parameterName);
 			padHandler.updateDisplay(index);
@@ -206,20 +221,26 @@ public class SequencEncoderHandler extends Layer {
 			oled.clearScreenDelayed();
 			return;
 		}
-        oled.detailInfo("Encoder Mode", encoderMode.getInfo());
-
-        switchMode(nextMode());
+        parent.notifyEncoderUsed();
+        switchMode(nextMode(), true);
 	}
 
-	private void switchMode(final EncoderMode newMode) {
-		encoderMode = newMode;
-		currentLayer.deactivate();
-		currentLayer = modeMapping.get(encoderMode);
-		currentLayer.activate();
-		applyResolution(encoderMode);
-
-		oled.detailInfo("Encoder Mode", encoderMode.getInfo());
-		oled.clearScreenDelayed();
+	/**
+	 * @param showInfo show the new assignment on the display. Only for a switch the user asked for
+	 *                 with the mode button, not for the automatic step/pad switch on every step tap.
+	 */
+	private void switchMode(final EncoderMode newMode, final boolean showInfo) {
+		if (newMode != encoderMode) {
+			encoderMode = newMode;
+			currentLayer.deactivate();
+			currentLayer = modeMapping.get(encoderMode);
+			currentLayer.activate();
+			applyResolution(encoderMode);
+		}
+		if (showInfo) {
+			oled.detailInfo("Encoder Mode", encoderMode.getInfo());
+			oled.clearScreenDelayed();
+		}
 	}
 
 	private void applyResolution(final EncoderMode mode) {
@@ -239,21 +260,22 @@ public class SequencEncoderHandler extends Layer {
 	}
 
 	private void handleMod(final int inc, final NoteStepAccess accessor) {
-		final List<NoteStep> notes = parent.isPadBeingHeld() ? parent.getOnNotes() : parent.getHeldNotes();
+		final List<NoteStep> notes = parent.getHeldNotes();
 		if (notes.isEmpty()) {
 			return;
 		}
 		for (int i = 0; i < notes.size(); i++) {
 			final NoteStep note = notes.get(i);
 
-			final String function = parent.isPadBeingHeld() ? "ALL " + accessor.getName() : accessor.getName();
+			final String function = accessor.getName();
 			final String details = parent.getDetails(notes);
-			final boolean first = i == 0;
+			// the display shows the step pressed last, like the second pad row
+			final boolean first = i == notes.size() - 1;
 
 			if (accessor.getUnit() == NoteValueUnit.MIDI || accessor.getUnit() == NoteValueUnit.NONE) {
 				final Integer newValue = accessor.applyIntIncrement(inc, note);
 				if (first && newValue != null) {
-					oled.paramInfo(function, newValue, details, accessor.getMinInt(), accessor.getMaxInt());
+					showIntValue(accessor, function, newValue, details);
 				}
 			} else if (accessor.getUnit() == NoteValueUnit.OCCURENCE) {
 				final NoteOccurrence newValue = incrementOccurence(inc, note);
@@ -263,12 +285,21 @@ public class SequencEncoderHandler extends Layer {
 			} else if (accessor.getUnit() == NoteValueUnit.RECURRENCE) {
 				final Integer newValue = accessor.applyIntIncrement(inc, note);
 				if (first && newValue != null) {
-					parent.updateRecurrencLength(newValue);
 					oled.paramInfo(function, newValue, details, accessor.getMinInt(), accessor.getMaxInt(), 1);
 				}
 			} else {
 				handleIncDouble(inc, accessor, notes, note, first);
 			}
+		}
+	}
+
+	private void showIntValue(final NoteStepAccess accessor, final String name, final int value,
+			final String details) {
+		if (accessor == NoteStepAccess.REPEATS) {
+			oled.paramInfo(name, value, StepValueBar.repeatsText(value), details, accessor.getMinInt(),
+					accessor.getMaxInt());
+		} else {
+			oled.paramInfo(name, value, details, accessor.getMinInt(), accessor.getMaxInt());
 		}
 	}
 
@@ -371,7 +402,7 @@ public class SequencEncoderHandler extends Layer {
 		} else if (heldNotes.isEmpty()) {
 			oled.paramInfo(accessor.getName(), parent.getPadInfo());
 		} else {
-			final NoteStep note = heldNotes.get(0);
+			final NoteStep note = heldNotes.get(heldNotes.size() - 1);
 			final String details = parent.getDetails(heldNotes);
 			if (accessor.getUnit() == NoteValueUnit.NOTE_LEN) {
 				parent.getLengthDisplay().set(true);
@@ -379,18 +410,20 @@ public class SequencEncoderHandler extends Layer {
 
 			if (accessor.getUnit() == NoteValueUnit.MIDI || accessor.getUnit() == NoteValueUnit.NONE) {
 				final int value = accessor.getInt(note);
-				oled.paramInfo(accessor.getName(), value, details, accessor.getMinInt(), accessor.getMaxInt());
+				showIntValue(accessor, accessor.getName(), value, details);
+				parent.enterStepValueBar(accessor);
 			} else if (accessor.getUnit() == NoteValueUnit.OCCURENCE) {
 				oled.paramInfo(accessor.getName(), note.occurrence().toString().replace("_", " "), details);
 			} else if (accessor.getUnit() == NoteValueUnit.RECURRENCE) {
 				final int value = accessor.getInt(note);
-				oled.paramInfo(accessor.getName(), value, details, accessor.getMinInt(), accessor.getMaxInt());
-				parent.enterRecurrenceEdit(heldNotes);
+				// length 1 means no recurrence: show it as "Off", like when turning the encoder
+				oled.paramInfo(accessor.getName(), value, details, accessor.getMinInt(), accessor.getMaxInt(), 1);
+				parent.enterRecurrenceEdit();
 			} else {
 				final double value = accessor.getDouble(note);
 				showDoubleValue(accessor, value, details);
+				parent.enterStepValueBar(accessor);
 			}
-			parent.registerModifiedSteps(heldNotes);
 		}
 	}
 

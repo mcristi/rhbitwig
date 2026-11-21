@@ -59,6 +59,33 @@ public class NoteRepeatHandler {
 		return noteRepeatActive;
 	}
 
+	/** Select knob pushed: put the pitch parameter the knob turns back to its default (0). */
+	void handleMainEncoderPress() {
+		final PadHandler padHandler = parent.getPadHandler();
+		if (arp.isEnabled().get() || padHandler.selectedPad == null) {
+			return;
+		}
+		// same detection and order as for turning the knob, see handleMainEncoder
+		if (padHandler.selectedPad.getParam1Name().toLowerCase().contains("tune")) {
+			padHandler.resetMacroValue(1);
+			showValueLater("Tune", padHandler::getTuneValue);
+		} else if (padHandler.selectedPad.getParam2Name().toLowerCase().contains("semis")) {
+			// not 0: the Note Transpose is what brings the pad's key to the sample's original pitch
+			padHandler.resetSemisToOriginalPitch();
+			showValueLater("Semitones", padHandler::getSemisValue);
+		} else if (padHandler.selectedPad.getParam5Name().toLowerCase().contains("pitch")) {
+			padHandler.resetMacroValue(5);
+			showValueLater("Pitch", padHandler::getPitchValue);
+		}
+	}
+
+	private void showValueLater(final String title, final java.util.function.DoubleSupplier value) {
+		parent.host.scheduleTask(() -> {
+			parent.getOled().valueInfo(title, "" + value.getAsDouble());
+			parent.getOled().clearScreenDelayed();
+		}, 0);
+	}
+
 	void handleMainEncoder(final int inc) {
  		if (arp.isEnabled().get()) {
 			final int newValue = selectedArpIndex + inc;

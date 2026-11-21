@@ -13,6 +13,7 @@ public class NoteAction {
 	private final int srcPadIndex;
 	private final Type type;
 	private final List<NoteStep> copyNotes;
+	private final long createdAt = System.currentTimeMillis();
 
 	NoteAction(final int srcPadIndex, final int destPadIndex, final Type type) {
 		this(srcPadIndex, destPadIndex, type, null);
@@ -23,6 +24,11 @@ public class NoteAction {
 		this.srcPadIndex = srcPadIndex;
 		this.type = type;
 		this.copyNotes = copyNotes;
+	}
+
+	/** The pad selection that triggers the action follows at once; anything later is a leftover. */
+	public boolean isExpired() {
+		return System.currentTimeMillis() - createdAt > 1000;
 	}
 
 	public Type getType() {

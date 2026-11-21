@@ -7,6 +7,7 @@ import static com.akai.fire.AkaiFireDrumSeqExtension.SE_EN;
 import static com.akai.fire.AkaiFireDrumSeqExtension.SE_OLED_RGB;
 import static com.akai.fire.AkaiFireDrumSeqExtension.SE_ST;
 
+import java.text.Normalizer;
 import java.util.List;
 
 import com.akai.fire.SysExUtil;
@@ -17,10 +18,14 @@ public class OledDisplay {
 	private final byte[] oledBar = new byte[] { SE_ST, MAN_ID_AKAI, DEVICE_ID, PRODUCT_ID, 0x09, 0x00, 0x08, //
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, SE_EN };
 	private final byte[] oledCmd = new byte[] { SE_ST, MAN_ID_AKAI, DEVICE_ID, PRODUCT_ID, SE_OLED_RGB, 00 };
-	private final byte[] oledPack = new byte[] { SE_ST, MAN_ID_AKAI, DEVICE_ID, PRODUCT_ID, 0x0E };
+	private static final byte[] oledPack = new byte[] { SE_ST, MAN_ID_AKAI, DEVICE_ID, PRODUCT_ID, 0x0E };
 
 	private final MidiOut midiOut;
 	private boolean inGraphicsMode = false;
+	// the packed all-black frame never changes, build it once
+	private final byte[] emptyScreenSysex = buildImageSysex(SysExUtil.EMPTY_SCREEN);
+	// nothing was drawn since the last clear, so another clear can be skipped
+	private boolean screenBlank = false;
 	private long clearTask = -1;
 	private long logoBlock;
 
@@ -57,7 +62,10 @@ public class OledDisplay {
 	}
 
 	public void clearScreen() {
-		sendImage(SysExUtil.EMPTY_SCREEN);
+		if (!screenBlank) {
+			midiOut.sendSysex(emptyScreenSysex);
+			screenBlank = true;
+		}
 		inGraphicsMode = false;
 	}
 
@@ -67,6 +75,11 @@ public class OledDisplay {
 	}
 
 	public void sendImageData(final int[] imageData) {
+		midiOut.sendSysex(buildImageSysex(imageData));
+		screenBlank = false;
+	}
+
+	private static byte[] buildImageSysex(final int[] imageData) {
 		final byte[] bytelist = SysExUtil.toBytePack(imageData);
 		final int datalen = bytelist.length + 4;
 		final byte[] sysex = new byte[oledPack.length + bytelist.length + 7];
@@ -80,7 +93,7 @@ public class OledDisplay {
 		sysex[9] = (byte) 0;
 		sysex[10] = (byte) 127;
 		sysex[sysex.length - 1] = SE_EN;
-		midiOut.sendSysex(sysex);
+		return sysex;
 	}
 
 	public void showBar(final boolean outline, final int width, final int height, final Fill foreground,
@@ -94,6 +107,7 @@ public class OledDisplay {
 		oledBar[13] = (byte) start;
 		oledBar[14] = (byte) end;
 		midiOut.sendSysex(oledBar);
+		screenBlank = false;
 	}
 
 	public void detailInfo(final String title, final String lines) {
@@ -125,14 +139,16 @@ public class OledDisplay {
 		}
 	}
 
-	public void showInfo(final DisplayInfo info, final Object... values) {
+	/** @return false if nothing was shown because the start-up logo is still up */
+	public boolean showInfo(final DisplayInfo info, final Object... values) {
 		if (logoBlock != -1 && System.currentTimeMillis() - logoBlock < 3000) {
-			return;
+			return false;
 		}
 		final List<Line> lines = info.getLines();
 		for (final Line line : lines) {
 			showLine(line);
 		}
+		return true;
 	}
 
 	public void showLine(final Line line) {
@@ -162,7 +178,7 @@ public class OledDisplay {
 			final String displayValue, final boolean biPolar) {
 		sendString(0, TextJustification.CENTER, 0, element);
 		sendString(2, TextJustification.CENTER, 1, parameterName);
-		sendString(2, TextJustification.CENTER, 3, displayValue.replace("±", "+/-"));
+		sendString(2, TextJustification.CENTER, 3, displayValue);
 		sendString(0, TextJustification.CENTER, 5, "");
 		if (biPolar) {
 			barValue(value - 0.5, -0.5, 0.5);
@@ -173,13 +189,16 @@ public class OledDisplay {
 
 	public void paramInfo(final String paramName, final int value, final String details, final int min, final int max,
 			final Integer offValue) {
+		final boolean off = offValue != null && value == offValue.intValue();
+		paramInfo(paramName, value, off ? "Off" : Integer.toString(value), details, min, max);
+	}
+
+	/** @param valueText what to show for the value; the bar still follows value within min..max */
+	public void paramInfo(final String paramName, final int value, final String valueText, final String details,
+			final int min, final int max) {
 		sendString(0, TextJustification.CENTER, 0, details);
 		sendString(2, TextJustification.CENTER, 1, paramName);
-		if (offValue != null && value == offValue.intValue()) {
-			sendString(2, TextJustification.CENTER, 3, "Off");
-		} else {
-			sendString(2, TextJustification.CENTER, 3, Integer.toString(value));
-		}
+		sendString(2, TextJustification.CENTER, 3, valueText);
 		sendString(0, TextJustification.CENTER, 5, "");
 
 		final int range = max - min;
@@ -191,7 +210,7 @@ public class OledDisplay {
 	public void valueInfo(final String title, final String value) {
 		sendString(2, TextJustification.CENTER, 0, title);
 		sendString(3, TextJustification.CENTER, 2, value);
-		sendString(5, TextJustification.CENTER, 5, "");
+		sendString(2, TextJustification.CENTER, 6, "");
 	}
 
 	public void paramInfoDouble(final String paramName, final double value, final String details, final double min,
@@ -246,6 +265,26 @@ public class OledDisplay {
 		return Integer.toString(val) + "%";
 	}
 
+	/**
+	 * SysEx data bytes must stay below 0x80, so text is reduced to printable ASCII: accents are
+	 * stripped (é -> e), anything else that does not fit becomes '?'.
+	 */
+	static String toAscii(final String text) {
+		if (text == null) {
+			return "";
+		}
+		final String decomposed = Normalizer.normalize(text.replace("±", "+/-"), Normalizer.Form.NFD);
+		final StringBuilder sb = new StringBuilder(decomposed.length());
+		for (int i = 0; i < decomposed.length(); i++) {
+			final char c = decomposed.charAt(i);
+			if (Character.getType(c) == Character.NON_SPACING_MARK) {
+				continue;
+			}
+			sb.append(c >= 0x20 && c < 0x7F ? c : '?');
+		}
+		return sb.toString();
+	}
+
 	public void sendString(final int fontSize, final TextJustification justification, final int placement,
 			final String text) {
 		if (inGraphicsMode) {
@@ -254,7 +293,8 @@ public class OledDisplay {
 		if (placement > 7 || fontSize > 3) {
 			return;
 		}
-		final String fitText = text.length() > 20 ? text.substring(0, 20) : text;
+		final String safeText = toAscii(text);
+		final String fitText = safeText.length() > 20 ? safeText.substring(0, 20) : safeText;
 		final byte[] sysex = new byte[fitText.length() + oledCmd.length + 5];
 		System.arraycopy(oledCmd, 0, sysex, 0, oledCmd.length);
 		sysex[sysex.length - 1] = SE_EN;
@@ -266,6 +306,7 @@ public class OledDisplay {
 			sysex[10 + i] = (byte) fitText.charAt(i);
 		}
 		midiOut.sendSysex(sysex);
+		screenBlank = false;
 		clearTask = -1;
 	}
 

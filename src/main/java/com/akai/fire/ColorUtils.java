@@ -25,6 +25,11 @@ public class ColorUtils {
         return getNextColor(pad.color().get());
     }
 
+    /** One of the colors that Shift + pad cycles through. */
+    public static Color getRandomColor() {
+        return colors[(int) (Math.random() * colors.length)];
+    }
+
     private static Color getNextColor(Color currentColor) {
         int colorIndex = 0;
         for (int i = 0; i < colors.length; i++) {

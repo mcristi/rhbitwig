@@ -13,7 +13,6 @@ import com.bitwig.extension.controller.ControllerExtension;
 import com.bitwig.extension.controller.api.*;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.Layers;
-import com.bitwig.extensions.framework.values.BooleanValueObject;
 import com.bitwig.extensions.framework.values.Midi;
 
 import java.util.Arrays;
@@ -49,7 +48,6 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     private DrumSequenceMode drumSequenceMode;
     private ViewCursorControl viewControl;
 
-    private final BooleanValueObject shiftActive = new BooleanValueObject();
     private OledDisplay oled;
     public ControllerHost host;
     private TouchEncoder mainEncoder;
@@ -131,11 +129,9 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         final BiColorButton stopButton = addButton(NoteAssign.STOP);
         stopButton.bindPressed(mainLayer, this::stopAction, this::getStopState);
 
-        final BiColorButton shiftButton = addButton(NoteAssign.SHIFT);
-        shiftButton.bind(mainLayer, shiftActive, BiColorLightState.RED_HALF, BiColorLightState.OFF);
-
-        final BiColorButton m1Button = addButton(NoteAssign.MUTE_1);
-        m1Button.bindPressed(mainLayer, this::dummyAction, BiColorLightState.RED_FULL);
+        // these buttons get their behaviour in DrumSequenceMode
+        addButton(NoteAssign.SHIFT);
+        addButton(NoteAssign.MUTE_1);
         addButton(NoteAssign.MUTE_2);
         addButton(NoteAssign.MUTE_3);
         addButton(NoteAssign.MUTE_4);
@@ -200,9 +196,6 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         return transport.isMetronomeEnabled().get() ? BiColorLightState.AMBER_HALF : BiColorLightState.OFF;
     }
 
-    private void dummyAction(final boolean pressed) {
-    }
-
     private void stopAction(final boolean pressed) {
         if (!pressed) {
             return;
@@ -222,25 +215,6 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
             return;
         }
         transport.isMetronomeEnabled().toggle();
-    }
-
-    private void togglePlay(final boolean pressed) {
-        if (!pressed) {
-            return;
-        }
-        if (transport.isPlaying().get()) {
-            transport.isPlaying().set(false);
-        } else {
-            drumSequenceMode.retrigger();
-            transport.restart();
-        }
-    }
-
-    private void retrigger(final boolean pressed) {
-        if (!pressed) {
-            return;
-        }
-        drumSequenceMode.retrigger();
     }
 
     private void setUpHardware() {
@@ -296,12 +270,37 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     }
 
     private void onMidi0(final ShortMidiMessage msg) {
-        getHost().println("MIDI " + msg.getStatusByte() + " " + msg.getData1() + " " + msg.getData2());
+        // getHost().println("MIDI " + msg.getStatusByte() + " " + msg.getData1() + " " + msg.getData2());
     }
 
     @Override
     public void exit() {
-        // getHost().showPopupNotification("Exit Akai Fire Drum Seq");
+        // The Fire keeps its last LED, pad and OLED state, so switch everything off.
+        for (final NoteAssign assign : NoteAssign.values()) {
+            if (assign != NoteAssign.KNOB_MODE_LIGHT && assign != NoteAssign.ENCODER_PRESS) {
+                midiOut.sendMidi(Midi.CC, assign.getNoteValue(), 0);
+            }
+        }
+        // bit 4 = bitmask form, no bits set: all four knob mode LEDs off
+        midiOut.sendMidi(Midi.CC, NoteAssign.KNOB_MODE_LIGHT.getNoteValue(), 0x10);
+
+        final int padCount = rgbButtons.length;
+        final int payload = padCount * 4;
+        final byte[] padsOff = new byte[7 + payload + 1];
+        padsOff[0] = SE_ST;
+        padsOff[1] = MAN_ID_AKAI;
+        padsOff[2] = DEVICE_ID;
+        padsOff[3] = PRODUCT_ID;
+        padsOff[4] = SE_CMD_RGB;
+        padsOff[5] = (byte) (payload >> 7 & 0x7F);
+        padsOff[6] = (byte) (payload & 0x7F);
+        for (int i = 0; i < padCount; i++) {
+            padsOff[7 + i * 4] = (byte) i; // r, g, b stay 0
+        }
+        padsOff[padsOff.length - 1] = SE_EN;
+        midiOut.sendSysex(padsOff);
+
+        oled.clearScreen();
     }
 
     @Override

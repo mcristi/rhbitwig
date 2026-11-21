@@ -74,9 +74,9 @@ public class StepViewPosition {
     }
     
     private void updateStates() {
-        if (pagePosition < pages) {
-            clip.scrollToStep(pagePosition * stepsPerPage);
-        }
+        // e.g. another, shorter clip got selected: fall back to its last page
+        pagePosition = Math.max(0, Math.min(pagePosition, pages - 1));
+        clip.scrollToStep(pagePosition * stepsPerPage);
         canScrollLeft.set(pagePosition > 0);
         canScrollRight.set(pagePosition < pages - 1);
     }
@@ -136,7 +136,7 @@ public class StepViewPosition {
     }
     
     public void scrollRight() {
-        if (pagePosition < pages) {
+        if (pagePosition < pages - 1) {
             pagePosition++;
             clip.scrollToStep(pagePosition * stepsPerPage);
             updateStates();

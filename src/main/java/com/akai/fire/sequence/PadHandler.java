@@ -17,9 +17,7 @@ import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class PadHandler {
 
@@ -27,11 +25,11 @@ public class PadHandler {
     private final PinnableCursorClip cursorClip;
     private final NoteInput noteInput;
     private final DrumPadBank padBank;
+    private final PinnableCursorDevice drumDevice;
 
     private final NoteRepeatHandler noteRepeatHandler;
 
     private final List<PadContainer> pads = new ArrayList<>();
-    private final Set<Integer> padsHeld = new HashSet<>();
 
     RgbLigthState currentPadColor = RgbLigthState.PURPLE;
 
@@ -60,6 +58,7 @@ public class PadHandler {
         final ViewCursorControl control = driver.getViewControl();
 
         padBank = control.getDrumPadBank();
+        drumDevice = control.getPrimaryDevice();
         padBank.canScrollBackwards().markInterested();
         padBank.canScrollForwards().markInterested();
         padBank.scrollPosition().markInterested();
@@ -121,9 +120,7 @@ public class PadHandler {
     }
 
     private void handlePadSelection(final PadContainer pad, final boolean pressed) {
-        if (!pressed) {
-            padsHeld.remove(pad.index);
-        } else {
+        if (pressed) {
             if (parent.isCopyHeld()) {
                 doNotesPadCopy(pad);
             } else if (parent.isShiftHeld()) {
@@ -136,8 +133,11 @@ public class PadHandler {
                     pad.pad.selectInEditor();
                 }
             } else {
+                // an empty pad of a Drum Machine gets a Komplete Kontrol to build on
+                if (!pad.exists() && drumDevice.hasDrumPads().get()) {
+                    pad.setUpEmptyPad(drumScrollOffset + pad.index);
+                }
                 pad.pad.selectInEditor();
-                padsHeld.add(pad.index);
 
                 if (parent.isSelectHeld()) {
                     selectTrackAndPadInstrument(pad);
@@ -156,6 +156,7 @@ public class PadHandler {
     }
 
     void executeCopy(final List<NoteStep> notes, final boolean copyParams) {
+        parent.clearExpectedNoteChanges();
         cursorClip.clearStepsAtY(0, 0);
         for (final NoteStep noteStep : notes) {
             double duration = noteStep.duration();
@@ -207,17 +208,24 @@ public class PadHandler {
         displayTarget.setFocusIndex(selectedPadIndex);
         displayTarget.setName(selectedPad.getName());
 
-        parent.getOled().showInfo(padDisplayInfo);
+        // nothing else follows a pad selection that would clear the display, so time it out here
+        if (parent.getOled().showInfo(padDisplayInfo)) {
+            parent.getOled().clearScreenDelayed();
+        }
 
         selectedPad.updateDisplay(displayTarget.getTypeIndex());
         final NoteAction pendingAction = parent.getPendingAction();
-        if (pendingAction != null && pendingAction.getDestPadIndex() == selectedPadIndex) {
-            if (pendingAction.getType() == Type.CLEAR) {
-                executeClear(pendingAction.getSrcPadIndex());
-            } else if (pendingAction.getType() == Type.COPY_PAD) {
-                executeCopy(pendingAction.getCopyNotes(), !parent.isShiftHeld());
-            }
+        if (pendingAction != null) {
+            // An action is only valid for the selection it was registered for. If that selection
+            // never came (e.g. an empty pad), drop it instead of running it on a later selection.
             parent.clearPendingAction();
+            if (pendingAction.getDestPadIndex() == selectedPadIndex && !pendingAction.isExpired()) {
+                if (pendingAction.getType() == Type.CLEAR) {
+                    executeClear(pendingAction.getSrcPadIndex());
+                } else if (pendingAction.getType() == Type.COPY_PAD) {
+                    executeCopy(pendingAction.getCopyNotes(), !parent.isShiftHeld());
+                }
+            }
         }
     }
 
@@ -231,10 +239,6 @@ public class PadHandler {
             return selectedPad.getName();
         }
         return "";
-    }
-
-    public boolean isPadBeingHeld() {
-        return !padsHeld.isEmpty();
     }
 
     public RgbLigthState getCurrentPadColor() {
@@ -302,7 +306,6 @@ public class PadHandler {
         if (!parent.isActive()) {
             return;
         }
-        padsHeld.clear();
         for (int i = 0; i < 128; i++) {
             notesToDrumTable[i] = -1;
         }
@@ -333,8 +336,28 @@ public class PadHandler {
         noteRepeatHandler.handleMainEncoder(inc);
     }
 
+    public void handleMainEncoderPress(final boolean pressed) {
+        if (pressed) {
+            noteRepeatHandler.handleMainEncoderPress();
+        }
+    }
+
+    /** Note Transpose of the selected pad back to where a sample plays at its original pitch. */
+    public void resetSemisToOriginalPitch() {
+        if (selectedPad != null) {
+            selectedPad.setSemis(PadContainer.originalPitchSemis(drumScrollOffset + selectedPad.index));
+        }
+    }
+
+    /** Puts remote control 1, 2 or 5 of the selected pad's first device back to its default. */
+    public void resetMacroValue(final int macro) {
+        if (selectedPad != null) {
+            selectedPad.resetMacroValue(macro);
+        }
+    }
+
     private BiColorLightState canScrollUp(final BiColorButton button) {
-        if (padBank.scrollPosition().get() + (parent.isShiftHeld() ? 16 : 4) < 128) {
+        if (padBank.scrollPosition().get() + (parent.isShiftHeld() ? 4 : 16) < 128) {
             if (button.isPressed()) {
                 return BiColorLightState.FULL;
             }
@@ -344,7 +367,7 @@ public class PadHandler {
     }
 
     private BiColorLightState canScrollDown(final BiColorButton button) {
-        if (padBank.scrollPosition().get() - (parent.isShiftHeld() ? 16 : 4) >= 0) {
+        if (padBank.scrollPosition().get() - (parent.isShiftHeld() ? 4 : 16) >= 0) {
             if (button.isPressed()) {
                 return BiColorLightState.FULL;
             }
@@ -390,7 +413,8 @@ public class PadHandler {
             int offset = 4;
             int remoteParamIndex = typeIndex - offset;
 
-            if (remoteParamIndex >= 0 && remoteParamIndex < remotePage.getParameterCount()) {
+            // no page until a pad has been selected (e.g. track without a Drum Machine)
+            if (remotePage != null && remoteParamIndex >= 0 && remoteParamIndex < remotePage.getParameterCount()) {
                 Parameter parameter = remotePage.getParameter(remoteParamIndex);
                 if (parameter != null) {
                     realParamName = parameter.name().get();

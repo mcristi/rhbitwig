@@ -15,17 +15,17 @@ public class AkaiFireDrumSeqDefinition extends ControllerExtensionDefinition {
 
     @Override
     public String getName() {
-        return "Akai Fire Drum Seqencer";
+        return "Akai Fire Drum Sequencer";
     }
 
     @Override
     public String getAuthor() {
-        return "R.Hawtin/E.Ahrens";
+        return "R.Hawtin/E.Ahrens/mcristi";
     }
 
     @Override
     public String getVersion() {
-        return "0.81";
+        return "1.0";
     }
 
     @Override

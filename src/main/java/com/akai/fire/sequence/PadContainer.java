@@ -1,6 +1,7 @@
 package com.akai.fire.sequence;
 
 import com.akai.fire.ColorLookup;
+import com.akai.fire.ColorUtils;
 import com.akai.fire.display.ParameterDisplayBinding;
 import com.akai.fire.lights.RgbLigthState;
 import com.bitwig.extension.controller.api.CursorRemoteControlsPage;
@@ -10,11 +11,21 @@ import com.bitwig.extension.controller.api.DrumPad;
 import com.bitwig.extension.controller.api.Send;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
+import com.bitwig.extensions.framework.values.SpecialDevices;
 
 class PadContainer {
 
     private static final double SHIFT_INC = 0.001;
     private static final double REGULAR_INC = 0.025;
+    // The key at which a sample loaded into Komplete Kontrol plays at its original pitch (C3)
+    private static final int SAMPLE_ROOT_KEY = 60;
+    // Note Transpose "Semis" goes from -48 to +48
+    private static final int SEMIS_RANGE = 48;
+    private static final String[] KEY_NAMES = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+    // how long the set-up of a new pad waits for Bitwig to create its devices (a plug-in can take a while)
+    private static final long PENDING_TRANSPOSE_MS = 15000;
+    // VST3 class id of Native Instruments Komplete Kontrol
+    private static final String KOMPLETE_KONTROL_VST3_ID = "5653544E694B4B6B6F6D706C65746520";
 
     private final PadHandler padHandler;
 
@@ -26,6 +37,17 @@ class PadContainer {
     private final BooleanValueObject playing;
     private boolean selected;
     private boolean exists;
+    // transpose to set once the new Note Transpose of this pad has arrived
+    private Integer pendingSemis;
+    // the Note Transpose still has to be put in front of the pad's new first device
+    private boolean pendingTransposeInsert;
+    // name for the new pad, see setUpEmptyPad
+    private String pendingName;
+    // the window of the new pad's Komplete Kontrol still has to be closed
+    private boolean pendingWindowClose;
+    // the new pad's Komplete Kontrol still has to be selected, once it sits behind the Note Transpose
+    private boolean pendingKontrolSelect;
+    private long pendingSemisSince;
 
     private final ParameterDisplayBinding volumeBinding;
     private final ParameterDisplayBinding panBinding;
@@ -87,6 +109,22 @@ class PadContainer {
             remoteControls.getParameter(i).value().markInterested();
             remoteControls.getParameter(i).name().markInterested();
         }
+        remoteControls.getParameter(1).name().addValueObserver(name -> applyPendingTranspose());
+        // the Komplete Kontrol is the first device until the Note Transpose is put in front of it
+        for (int i = 0; i < 2; i++) {
+            final Device device = deviceBank.getDevice(i);
+            device.isWindowOpen().addValueObserver(open -> {
+                if (open) {
+                    closePendingWindow(device);
+                }
+            });
+        }
+        deviceBank.getDevice(1).exists().addValueObserver(secondDeviceExists -> selectPendingKontrol());
+        deviceBank.getDevice(0).exists().addValueObserver(firstDeviceExists -> {
+            if (firstDeviceExists) {
+                insertPendingTranspose();
+            }
+        });
 
         macro1Binding = new ParameterDisplayBinding(4, index, remoteControls.getParameter(0), padHandler.getDiplayTarget(), false);
         macro2Binding = new ParameterDisplayBinding(5, index, remoteControls.getParameter(1), padHandler.getDiplayTarget(), false);
@@ -118,6 +156,109 @@ class PadContainer {
         layer.addBinding(macro6Binding);
         layer.addBinding(macro7Binding);
         layer.addBinding(macro8Binding);
+    }
+
+    /** @return false for a pad of the Drum Machine that has nothing on it yet */
+    public boolean exists() {
+        return exists;
+    }
+
+    /**
+     * Sets up an empty pad as a starting point for a synth or sample: a Komplete Kontrol with a Note
+     * Transpose in front of it that moves the pad's key to C3, so that samples play at their original
+     * pitch, and a random color.
+     *
+     * @param key the key the pad is played with
+     */
+    public void setUpEmptyPad(final int key) {
+        pad.insertionPoint().insertVST3Device(KOMPLETE_KONTROL_VST3_ID);
+        // The rest has to wait for Bitwig. Once the pad has its chain with the Komplete Kontrol it
+        // gets its color and the Note Transpose (insertPendingTranspose), the plug-in window is
+        // closed when it opens (closePendingWindow), and the Semis are set once the Note Transpose
+        // exists (applyPendingTranspose).
+        pendingTransposeInsert = true;
+        pendingWindowClose = true;
+        // otherwise every new pad would be called "Komplete Kontrol"
+        pendingName = keyName(key);
+        pendingSemis = originalPitchSemis(key);
+        pendingSemisSince = System.currentTimeMillis();
+    }
+
+    /** @return the key as Bitwig shows it, e.g. 46 = A#1 (C3 = 60) */
+    public static String keyName(final int key) {
+        return KEY_NAMES[key % 12] + (key / 12 - 2);
+    }
+
+    /** @return the Note Transpose semitones that make the given key play a sample at its original pitch */
+    public static int originalPitchSemis(final int key) {
+        return Math.max(-SEMIS_RANGE, Math.min(SEMIS_RANGE, SAMPLE_ROOT_KEY - key));
+    }
+
+    /** @return true if the first device of the pad is a Note Transpose (its 2nd control is Semis) */
+    private boolean startsWithNoteTranspose() {
+        return getParam2Name().toLowerCase().contains("semi");
+    }
+
+    private boolean pendingSetUpExpired() {
+        return System.currentTimeMillis() - pendingSemisSince > PENDING_TRANSPOSE_MS;
+    }
+
+    /** The pad's first device (the Komplete Kontrol) has arrived: put the Note Transpose before it. */
+    private void insertPendingTranspose() {
+        if (!pendingTransposeInsert) {
+            return;
+        }
+        pendingTransposeInsert = false;
+        if (!pendingSetUpExpired()) {
+            pad.color().set(ColorUtils.getRandomColor());
+            pad.name().set(pendingName);
+            deviceBank.getDevice(0).beforeDeviceInsertionPoint()
+                    .insertBitwigDevice(SpecialDevices.NOTE_TRANSPOSE.getUuid());
+        }
+    }
+
+    /** Bitwig opens the window of a newly inserted plug-in; the new pad should stay in the background. */
+    private void closePendingWindow(final Device device) {
+        if (!pendingWindowClose) {
+            return;
+        }
+        pendingWindowClose = false;
+        if (!pendingSetUpExpired()) {
+            device.isWindowOpen().set(false);
+        }
+    }
+
+    private void applyPendingTranspose() {
+        if (pendingSemis == null) {
+            return;
+        }
+        if (pendingSetUpExpired()) {
+            pendingSemis = null;
+        } else if (startsWithNoteTranspose()) {
+            setSemis(pendingSemis);
+            pendingSemis = null;
+            // the Note Transpose is in place, so the Komplete Kontrol is the second device now
+            pendingKontrolSelect = true;
+            selectPendingKontrol();
+        }
+    }
+
+    /** Last step of the set-up: leave the Komplete Kontrol selected, ready to load a sound. */
+    private void selectPendingKontrol() {
+        if (!pendingKontrolSelect || !deviceBank.getDevice(1).exists().get()) {
+            return;
+        }
+        pendingKontrolSelect = false;
+        if (!pendingSetUpExpired()) {
+            deviceBank.getDevice(1).selectInEditor();
+        }
+    }
+
+    /** Sets the Semis of a Note Transpose at the start of the pad's chain. */
+    public void setSemis(final int semis) {
+        if (startsWithNoteTranspose()) {
+            remoteControls.getParameter(1).value().setImmediately(0.5 + semis / (2.0 * SEMIS_RANGE));
+        }
     }
 
     public RgbLigthState getPadColor() {
@@ -195,6 +336,10 @@ class PadContainer {
     }
 
     public RgbLigthState getColor() {
+        // with Copy held the selected pad is what gets copied: blink it like a copied step
+        if (selected && padHandler.parent.isCopyHeld() && padHandler.parent.isSourceBlinkDark()) {
+            return RgbLigthState.GRAY_1;
+        }
         if (selected) {
             return playing.returnTrueFalse(padColor.getBrightest(), padColor.getBrightend());
         }
@@ -265,6 +410,22 @@ class PadContainer {
         }
     }
 
+    public void resetMacroValue(final int macro) {
+        switch (macro) {
+            case 1:
+                macro1Binding.reset();
+                break;
+            case 2:
+                macro2Binding.reset();
+                break;
+            case 5:
+                macro5Binding.reset();
+                break;
+            default:
+                break;
+        }
+    }
+
     public void setMacro1Value(final double amount) {
         macro1Binding.modify(amount);
     }
@@ -323,12 +484,16 @@ class PadContainer {
                 break;
             case 7:
                 macro4Binding.update();
+                break;
             case 8:
                 macro5Binding.update();
+                break;
             case 9:
                 macro6Binding.update();
+                break;
             case 10:
                 macro7Binding.update();
+                break;
             case 11:
                 macro8Binding.update();
                 break;

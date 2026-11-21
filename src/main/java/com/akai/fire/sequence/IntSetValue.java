@@ -1,15 +1,20 @@
 package com.akai.fire.sequence;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import com.akai.fire.NoteValue.IntValueListener;
-
 public class IntSetValue {
-    private final Set<Integer> values = new HashSet<>();
+
+    @FunctionalInterface
+    public interface IntValueListener {
+        void handleChange(int value);
+    }
+
+    // keeps the order in which the values were added
+    private final Set<Integer> values = new LinkedHashSet<>();
     private final List<IntValueListener> sizeListener = new ArrayList<>();
     
     public IntSetValue() {
@@ -39,6 +44,10 @@ public class IntSetValue {
         if (oldSize != newSize) {
             sizeListener.forEach(l -> l.handleChange(newSize));
         }
+    }
+
+    public boolean isEmpty() {
+        return values.isEmpty();
     }
 
     public boolean contains(final int index) {

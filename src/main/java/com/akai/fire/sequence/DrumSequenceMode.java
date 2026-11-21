@@ -22,21 +22,27 @@ import com.bitwig.extensions.framework.values.BooleanValueObject;
 import com.bitwig.extensions.framework.values.StepViewPosition;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class DrumSequenceMode extends Layer {
 
     private final IntSetValue heldSteps = new IntSetValue();
     private final Set<Integer> addedSteps = new HashSet<>();
-    private final Set<Integer> modifiedSteps = new HashSet<>();
-    private final HashMap<Integer, NoteStep> expectedNoteChanges = new HashMap<>();
+    // true once an encoder was touched or turned during the current step hold (from the first
+    // step pressed until all are released): those steps are being edited and stay on release
+    private boolean encoderUsedWhileHolding = false;
+    // step -> what to do with the note that is about to appear there
+    private final HashMap<Integer, Consumer<NoteStep>> expectedNoteChanges = new HashMap<>();
+    // runs once all expected notes of a written pattern have arrived, see writePattern
+    private Runnable afterPatternWritten;
+    private int patternWriteId = 0;
 
     private final NoteStep[] assignments = new NoteStep[32];
 
     private final OledDisplay oled;
 
     private final Layer mainLayer;
-    private final Layer shiftLayer;
     private Layer currentLayer;
     private final Layer muteLayer;
     private final Layer soloLayer;
@@ -49,6 +55,7 @@ public class DrumSequenceMode extends Layer {
     private final ResolutionHander resolutionHandler;
     private final SeqClipHandler clipHandler;
     private final RecurrenceEditor recurrenceEditor;
+    private final StepValueBar stepValueBar;
     private final PadHandler padHandler;
 
     private final BooleanValueObject muteMode = new BooleanValueObject();
@@ -65,8 +72,11 @@ public class DrumSequenceMode extends Layer {
     private final BooleanValueObject soloActionsTaken = new BooleanValueObject();
 
     private int playingStep;
+    // playing step counted from the clip start; playingStep is relative to the visible page
+    private int clipPlayingStep = -1;
+    // a grid button press was used for paging, so its release must not move the pattern
+    private boolean pageScrolled = false;
     private final double gatePercent = 0.98;
-    private boolean markIgnoreOrigLen = false;
     private final AccentHandler accentHandler;
     private NoteAction pendingAction;
     private NoteStep copyNote = null;
@@ -80,7 +90,6 @@ public class DrumSequenceMode extends Layer {
         super(driver.getLayers(), "DRUM_SEQUENCE_LAYER");
         oled = driver.getOled();
         mainLayer = new Layer(getLayers(), getName() + "_MAIN");
-        shiftLayer = new Layer(getLayers(), getName() + "_SHIFT");
         muteLayer = new Layer(getLayers(), getName() + "_MUTE");
         soloLayer = new Layer(getLayers(), getName() + "_SOLO");
 
@@ -95,17 +104,14 @@ public class DrumSequenceMode extends Layer {
 
         cursorClip.addNoteStepObserver(this::handleNoteStep);
         cursorClip.playingStep().addValueObserver(this::handlePlayingStep);
-        cursorClip.getLoopLength().addValueObserver(clipLength -> {
-            if (markIgnoreOrigLen) {
-                markIgnoreOrigLen = false;
-            }
-        });
+        cursorClip.getLoopLength().markInterested();
         cursorClip.isPinned().markInterested();
         positionHandler = new StepViewPosition(cursorClip, 32, "AKAI");
 
         padHandler = new PadHandler(driver, this, mainLayer, muteLayer, soloLayer);
         clipHandler = new SeqClipHandler(driver, this, mainLayer);
         recurrenceEditor = new RecurrenceEditor(driver, this);
+        stepValueBar = new StepValueBar(driver, this);
 
         initSequenceSection(driver);
         initModeButtons(driver);
@@ -135,7 +141,6 @@ public class DrumSequenceMode extends Layer {
         selectHeld.addValueObserver(held -> {
             if (!held) {
                 heldSteps.removeAll();
-                modifiedSteps.clear();
                 encoderLayer.switchToPadEncoders();
             }
         });
@@ -154,8 +159,6 @@ public class DrumSequenceMode extends Layer {
         bindEditButton(driver.getButton(NoteAssign.MUTE_2), "Copy", copyHeld, stateLights[1], null, null, BiColorLightState.AMBER_HALF, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_FULL);
         bindEditButton(driver.getButton(NoteAssign.MUTE_3), "Delete/Reset", deleteHeld, stateLights[2], null, null, BiColorLightState.RED_HALF, BiColorLightState.RED_FULL, BiColorLightState.RED_FULL);
         bindEditButton(driver.getButton(NoteAssign.MUTE_4), "Last Step", fixedLengthHeld, stateLights[3], null, null, BiColorLightState.OFF, BiColorLightState.AMBER_FULL, BiColorLightState.RED_FULL);
-        final BiColorButton deleteButton = driver.getButton(NoteAssign.MUTE_3);
-        deleteButton.bind(mainLayer, deleteHeld, BiColorLightState.GREEN_FULL, BiColorLightState.OFF);
     }
 
     private void initButtonBehaviour(final AkaiFireDrumSeqExtension driver) {
@@ -167,7 +170,7 @@ public class DrumSequenceMode extends Layer {
         shiftButton.bindPressed(mainLayer, pressed -> {
             if (pressed) {
                 shiftActive.set(true);
-                oled.detailInfo("Shift", "+ pad: toggle colors\n+ mode: alt mode\n+ select: grid size\n+ knob: fine adjust\n+ mute/solo: pin");
+                oled.detailInfo("Shift", "+ pad: toggle colors\n+ mode: alt mode\n+ select: grid size\n+ knob: fine adjust\n+ mute/solo: pin\n+ grid </>: step page");
             } else {
                 shiftActive.set(false);
                 oled.clearScreenDelayed();
@@ -219,9 +222,11 @@ public class DrumSequenceMode extends Layer {
         pinButton.bindPressed(mainLayer, this::handleClipPinning, this::getPinnedState);
 
         final BiColorButton shiftLeftButton = driver.getButton(NoteAssign.BANK_L);
-        shiftLeftButton.bindPressed(mainLayer, p -> movePattern(p, -1), BiColorLightState.HALF, BiColorLightState.OFF);
+        shiftLeftButton.bindPressed(mainLayer, p -> handleGridButton(p, -1),
+                () -> gridButtonState(shiftLeftButton, positionHandler.canScrollLeft()));
         final BiColorButton shiftRightButton = driver.getButton(NoteAssign.BANK_R);
-        shiftRightButton.bindPressed(mainLayer, p -> movePattern(p, 1), BiColorLightState.HALF, BiColorLightState.OFF);
+        shiftRightButton.bindPressed(mainLayer, p -> handleGridButton(p, 1),
+                () -> gridButtonState(shiftRightButton, positionHandler.canScrollRight()));
     }
 
     private void initSequenceSection(final AkaiFireDrumSeqExtension driver) {
@@ -237,6 +242,7 @@ public class DrumSequenceMode extends Layer {
         final NoteStep note = assignments[index];
         if (!pressed) {
             if (selectHeld.get()) {
+                addedSteps.remove(index);
                 return;
             }
 
@@ -244,16 +250,21 @@ public class DrumSequenceMode extends Layer {
             if (copyHeld.get() || fixedLengthHeld.get()) {
                 // do nothing
             } else if (note != null && note.state() == State.NoteOn && !addedSteps.contains(index)) {
-                if (!modifiedSteps.contains(index)) {
+                if (!encoderUsedWhileHolding) {
                     cursorClip.toggleStep(index, 0, accentHandler.getCurrenVel());
-                } else {
-                    modifiedSteps.remove(index);
                 }
             }
             addedSteps.remove(index);
 
-            encoderLayer.switchToPadEncoders();
+            // keep the step encoders while other steps are still held
+            if (heldSteps.isEmpty()) {
+                encoderLayer.switchToPadEncoders();
+            }
         } else {
+            if (heldSteps.isEmpty()) {
+                // a new hold starts; an encoder that is already touched counts for it
+                encoderUsedWhileHolding = encoderLayer.isAnyEncoderTouched();
+            }
             heldSteps.add(index);
 
             if (fixedLengthHeld.get()) {
@@ -281,7 +292,8 @@ public class DrumSequenceMode extends Layer {
             }
             final int vel = (int) Math.round(copyNote.velocity() * 127);
             final double duration = copyNote.duration();
-            expectedNoteChanges.put(index, copyNote);
+            final NoteStep source = copyNote;
+            expectedNoteChanges.put(index, dest -> applyValues(dest, source));
             cursorClip.setStep(index, 0, vel, duration);
         } else if (note != null && note.state() == State.NoteOn) {
             copyNote = note;
@@ -308,7 +320,7 @@ public class DrumSequenceMode extends Layer {
             if ((copyNote != null && copyNote.x() == index) ||
                 (isSelectHeld() && heldSteps.contains(index))
             ) {
-                if (blinkState % 4 < 2) {
+                if (isSourceBlinkDark()) {
                     return RgbLigthState.GRAY_1;
                 }
                 return padHandler.getCurrentPadColor();
@@ -335,13 +347,50 @@ public class DrumSequenceMode extends Layer {
         }
     }
 
-    private void movePattern(final boolean pressed, final int dir) {
+    /** Grid left/right: move the notes of the visible page. With Shift: change the step page. */
+    private void handleGridButton(final boolean pressed, final int dir) {
         if (pressed) {
-            return;
+            pageScrolled = shiftActive.get();
+            if (pageScrolled) {
+                scrollPage(dir);
+            }
+        } else if (pageScrolled) {
+            pageScrolled = false;
+            oled.clearScreenDelayed();
+        } else {
+            movePattern(dir);
         }
+    }
+
+    /** With Shift held the grid buttons show whether there is a page in that direction. */
+    private BiColorLightState gridButtonState(final BiColorButton button, final BooleanValueObject canScroll) {
+        if (shiftActive.get()) {
+            return canScroll.get() ? BiColorLightState.HALF : BiColorLightState.OFF;
+        }
+        return button.isPressed() ? BiColorLightState.HALF : BiColorLightState.OFF;
+    }
+
+    private void scrollPage(final int dir) {
+        // held steps are indices into the current page, don't pull it away under them
+        if (heldSteps.isEmpty()) {
+            if (dir < 0) {
+                positionHandler.scrollLeft();
+            } else {
+                positionHandler.scrollRight();
+            }
+            updatePlayingStep();
+        }
+        oled.valueInfo("Step Page", (positionHandler.getCurrentPage() + 1) + "/" + positionHandler.getPages());
+    }
+
+    private void movePattern(final int dir) {
         final List<NoteStep> notes = getOnNotes();
-        final int availableSteps = positionHandler.getAvailableSteps();
-        cursorClip.clearStepsAtY(0, 0);
+        final int availableSteps = Math.min(assignments.length, positionHandler.getAvailableSteps());
+        expectedNoteChanges.clear();
+        // only remove what is rewritten below, notes on other pages stay untouched
+        for (final NoteStep noteStep : notes) {
+            cursorClip.clearStep(0, noteStep.x(), 0);
+        }
 
         for (final NoteStep noteStep : notes) {
             int pos = noteStep.x() + dir;
@@ -350,9 +399,7 @@ public class DrumSequenceMode extends Layer {
             } else if (pos >= availableSteps) {
                 pos = 0;
             }
-            if (!shiftActive.get()) {
-                expectedNoteChanges.put(pos, noteStep);
-            }
+            expectedNoteChanges.put(pos, dest -> applyValues(dest, noteStep));
             cursorClip.setStep(pos, 0, (int) Math.round(noteStep.velocity() * 127), noteStep.duration());
         }
     }
@@ -385,6 +432,8 @@ public class DrumSequenceMode extends Layer {
             accentHandler.handeMainEncoderPress(press);
         } else if (getShiftActive().get()) {
             resolutionHandler.handeMainEncoderPress(press);
+        } else {
+            padHandler.handleMainEncoderPress(press);
         }
     }
 
@@ -497,8 +546,11 @@ public class DrumSequenceMode extends Layer {
         return getPadInfo() + " <" + heldNotes.size() + ">";
     }
 
-    public void registerModifiedSteps(final List<NoteStep> notes) {
-        notes.forEach(s -> modifiedSteps.add(s.x()));
+    /** An encoder was touched or turned: steps held right now must survive their release. */
+    public void notifyEncoderUsed() {
+        if (!heldSteps.isEmpty()) {
+            encoderUsedWhileHolding = true;
+        }
     }
 
     List<NoteStep> getHeldNotes() {
@@ -561,11 +613,64 @@ public class DrumSequenceMode extends Layer {
         final int newStep = noteStep.x();
 
         assignments[newStep] = noteStep;
-        if (expectedNoteChanges.containsKey(newStep)) {
-            final NoteStep previousStep = expectedNoteChanges.get(newStep);
-            expectedNoteChanges.remove(newStep);
-            applyValues(noteStep, previousStep);
+        // Wait for the new note itself: clearing the row first reports the step as empty, and
+        // applying the values to that would use them up before the note exists.
+        if (noteStep.state() == State.NoteOn) {
+            final Consumer<NoteStep> change = expectedNoteChanges.remove(newStep);
+            if (change != null) {
+                change.accept(noteStep);
+                if (expectedNoteChanges.isEmpty()) {
+                    patternWritten(patternWriteId);
+                }
+            }
         }
+    }
+
+    /** @return the notes of the selected pad on the visible page, with all their values */
+    List<StepData> snapshotPattern() {
+        return getOnNotes().stream().map(StepData::of).collect(Collectors.toList());
+    }
+
+    /** Removes the notes of the selected pad from the clip on display. */
+    void clearPattern() {
+        expectedNoteChanges.clear();
+        cursorClip.clearStepsAtY(0, 0);
+    }
+
+    /**
+     * Writes the pattern for the selected pad into the clip on display.
+     *
+     * @param whenDone runs once Bitwig has reported all the notes and they got their values, or after
+     *                 a second at the latest
+     */
+    void writePattern(final List<StepData> pattern, final Runnable whenDone) {
+        expectedNoteChanges.clear();
+        final int id = ++patternWriteId;
+        afterPatternWritten = whenDone;
+        for (final StepData step : pattern) {
+            expectedNoteChanges.put(step.x(), step::applyTo);
+            cursorClip.setStep(step.x(), 0, step.midiVelocity(), step.duration());
+        }
+        host.scheduleTask(() -> patternWritten(id), 1000);
+    }
+
+    private void patternWritten(final int id) {
+        if (id != patternWriteId || afterPatternWritten == null) {
+            return;
+        }
+        final Runnable whenDone = afterPatternWritten;
+        afterPatternWritten = null;
+        // whatever did not arrive must not hit notes of the next clip on display
+        expectedNoteChanges.clear();
+        whenDone.run();
+    }
+
+    double getClipLength() {
+        return cursorClip.getLoopLength().get();
+    }
+
+    void setClipLength(final double beats) {
+        cursorClip.getLoopLength().set(beats);
     }
 
     private void applyValues(final NoteStep dest, final NoteStep src) {
@@ -586,10 +691,12 @@ public class DrumSequenceMode extends Layer {
     }
 
     private void handlePlayingStep(final int playingStep) {
-        if (playingStep == -1) {
-            this.playingStep = -1;
-        }
-        this.playingStep = playingStep - positionHandler.getStepOffset();
+        clipPlayingStep = playingStep;
+        updatePlayingStep();
+    }
+
+    private void updatePlayingStep() {
+        playingStep = clipPlayingStep == -1 ? -1 : clipPlayingStep - positionHandler.getStepOffset();
     }
 
     @Override
@@ -603,7 +710,6 @@ public class DrumSequenceMode extends Layer {
     @Override
     protected void onDeactivate() {
         currentLayer.deactivate();
-        shiftLayer.deactivate();
         encoderLayer.deactivate();
         padHandler.disableNotePlaying();
     }
@@ -628,6 +734,11 @@ public class DrumSequenceMode extends Layer {
         return shiftActive.get();
     }
 
+    /** Blink phase of whatever is marked as the source of a copy (step, pad or clip). */
+    boolean isSourceBlinkDark() {
+        return blinkState % 4 < 2;
+    }
+
     boolean isCopyHeld() {
         return copyHeld.get();
     }
@@ -640,28 +751,44 @@ public class DrumSequenceMode extends Layer {
         return selectHeld.get();
     }
 
+    public void abortRecurrenceEdit() {
+        recurrenceEditor.abort();
+    }
+
     public void exitRecurrenceEdit() {
         recurrenceEditor.exitRecurrenceEdit();
     }
 
-    public void enterRecurrenceEdit(final List<NoteStep> notes) {
-        recurrenceEditor.enterRecurrenceEdit(notes);
+    /** Shows the value on the second pad row, if it is one the bar knows (velocity, chance, repeats). */
+    public void enterStepValueBar(final NoteStepAccess accessor) {
+        if (StepValueBar.supports(accessor)) {
+            // both use the second pad row
+            recurrenceEditor.abort();
+            stepValueBar.enter(accessor);
+        }
     }
 
-    public void updateRecurrencLength(final int length) {
-        recurrenceEditor.updateLength(length);
+    /** The held step pressed last that has a note: the one the display and the second row show. */
+    NoteStep getFocusNote() {
+        final List<NoteStep> held = getHeldNotes();
+        return held.isEmpty() ? null : held.get(held.size() - 1);
+    }
+
+    public void enterRecurrenceEdit() {
+        stepValueBar.abort();
+        recurrenceEditor.enterRecurrenceEdit();
     }
 
     public IntSetValue getHeldSteps() {
         return heldSteps;
     }
 
-    public boolean isPadBeingHeld() {
-        return padHandler.isPadBeingHeld();
+    public void clearExpectedNoteChanges() {
+        expectedNoteChanges.clear();
     }
 
     public void registerExpectedNoteChange(final int x, final NoteStep noteStep) {
-        expectedNoteChanges.put(noteStep.x(), noteStep);
+        expectedNoteChanges.put(noteStep.x(), dest -> applyValues(dest, noteStep));
     }
 
     public BooleanValueObject getLengthDisplay() {

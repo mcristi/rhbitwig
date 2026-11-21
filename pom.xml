@@ -3,11 +3,32 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.yaeltex</groupId>
-    <artifactId>yaeltexarpcontrol</artifactId>
+    <groupId>com.akai.fire</groupId>
+    <artifactId>rhbitwig</artifactId>
     <packaging>jar</packaging>
-    <name>YaeltexArpControl</name>
+    <name>rhbitwig</name>
     <version>0.1</version>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Where `mvn install` puts the extension. Bitwig reloads it from here when the file changes.
+             Override with -Dbitwig.extension.directory=/some/path -->
+        <bitwig.extension.directory>${user.home}/Documents/Bitwig Studio/Extensions</bitwig.extension.directory>
+    </properties>
+
+    <profiles>
+        <profile>
+            <id>linux</id>
+            <activation>
+                <os>
+                    <name>Linux</name>
+                </os>
+            </activation>
+            <properties>
+                <bitwig.extension.directory>${user.home}/Bitwig Studio/Extensions</bitwig.extension.directory>
+            </properties>
+        </profile>
+    </profiles>
 
     <repositories>
         <repository>
@@ -55,7 +76,7 @@
                             <sourceFile>${project.build.directory}/${project.build.finalName}.jar
                             </sourceFile>
                             <destinationFile>
-								/Users/meli/Documents/Bitwig Studio/Extensions/rhbitwig.bwextension
+								${bitwig.extension.directory}/rhbitwig.bwextension
                             </destinationFile>
                         </configuration>
                     </execution>

@@ -79,6 +79,11 @@ public class ParameterDisplayBinding extends Binding<Parameter, DisplayTarget> {
         getSource().inc(inc);
     }
 
+	/** Back to the parameter's default value. */
+	public void reset() {
+		getSource().reset();
+	}
+
 	public double getValue() {
 		return getSource().value().get();
 	}

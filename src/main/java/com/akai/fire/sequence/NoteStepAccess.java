@@ -18,7 +18,7 @@ public enum NoteStepAccess implements EncoderAccess {
 			NoteValueUnit.PERCENT, 0, 1, 0.05, 1, 1.0),
 	REPEATS("Repeats", ns -> ns.repeatCount(), //
 			(final NoteStep ns, final int v) -> ns.setRepeatCount(v), //
-			NoteValueUnit.NONE, 0, 16, 1, 2, 0.0),
+			NoteValueUnit.NONE, 0, 15, 1, 2, 0.0), // API 0 = off, n = n + 1 repeats: up to 16
 	TIMBRE("Timbre", ns -> ns.timbre(), //
 			(final NoteStep ns, final double v) -> ns.setTimbre(v), //
 			NoteValueUnit.PERCENT, -1, 1, 0.01, 0.25, 0.0),
@@ -34,7 +34,7 @@ public enum NoteStepAccess implements EncoderAccess {
 	OCCURENCE("IF:", NoteValueUnit.OCCURENCE, 1, 4), //
 	RECURRENCE("Recurr.len", ns -> ns.recurrenceLength(), //
 			(final NoteStep ns, final int v) -> ns.setRecurrence(v, ns.recurrenceMask()), //
-			NoteValueUnit.RECURRENCE, 1, 8, 1, 2, 0.0),
+			NoteValueUnit.RECURRENCE, 1, 8, 1, 2, 1.0),
 	REPEATCURVE("Repeat Curve", ns -> ns.repeatCurve(), //
 			(final NoteStep ns, final double v) -> ns.setRepeatCurve(v), //
 			NoteValueUnit.PERCENT, -1, 1, 0.01, 0.25, 0.0),
@@ -121,7 +121,7 @@ public enum NoteStepAccess implements EncoderAccess {
 		if (intGetter != null) {
 			return intGetter.get(step);
 		}
-		return (int) (doubleGetter.get(step) * max);
+		return (int) Math.round(doubleGetter.get(step) * max);
 	}
 
 	public Double applyDoubleIncrement(final int inc, final NoteStep step) {

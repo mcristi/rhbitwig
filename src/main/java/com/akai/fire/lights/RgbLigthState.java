@@ -16,6 +16,11 @@ public class RgbLigthState extends InternalHardwareLightState {
 
 	public static final RgbLigthState OFF = new RgbLigthState(0, 0, 0, true);
 	public static final RgbLigthState PURPLE = new RgbLigthState(80, 0, 80, true);
+	// encoder 1..4, in the order Bitwig colors its remote controls
+	public static final RgbLigthState RED = new RgbLigthState(127, 0, 0, true);
+	public static final RgbLigthState ORANGE = new RgbLigthState(127, 30, 0, true);
+	public static final RgbLigthState YELLOW = new RgbLigthState(127, 100, 0, true);
+	public static final RgbLigthState GREEN = new RgbLigthState(0, 127, 0, true);
 	public static final RgbLigthState WHITE = new RgbLigthState(100, 100, 100, true);
 	public static final RgbLigthState GRAY_1 = new RgbLigthState(10, 10, 10, true);
 	public static final RgbLigthState GRAY_2 = new RgbLigthState(40, 40, 40, true);

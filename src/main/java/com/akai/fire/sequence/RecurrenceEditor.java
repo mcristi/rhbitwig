@@ -8,14 +8,18 @@ import com.akai.fire.lights.RgbLigthState;
 import com.bitwig.extension.controller.api.NoteStep;
 import com.bitwig.extensions.framework.Layer;
 
+/**
+ * Shows and edits the recurrence pattern on the second pad row. Once opened it stays until all steps
+ * are released and always shows the step pressed last, so holding another step switches to its
+ * pattern. A pad press changes the pattern of all held steps.
+ */
 public class RecurrenceEditor {
-	private List<NoteStep> editedSteps;
-	private int currentMask = 0;
-	private int currentLen = 1;
+	private final DrumSequenceMode parent;
 	private final Layer layer;
 	private boolean pendingRelease;
 
 	public RecurrenceEditor(final AkaiFireDrumSeqExtension driver, final DrumSequenceMode parent) {
+		this.parent = parent;
 		layer = new Layer(driver.getLayers(), parent.getName() + "_RECURRENCE");
 		initClipControlButtons(layer, driver);
 		final IntSetValue heldSteps = parent.getHeldSteps();
@@ -24,9 +28,7 @@ public class RecurrenceEditor {
 
 	private void finalizeEdit(final int stepsHeld) {
 		if (pendingRelease && stepsHeld == 0) {
-			pendingRelease = false;
-			editedSteps = null;
-			layer.deactivate();
+			abort();
 		}
 	}
 
@@ -41,9 +43,14 @@ public class RecurrenceEditor {
 	}
 
 	private RgbLigthState getState(final int index, final int mask) {
-		if (index < currentLen && currentLen > 1) {
-			if ((mask & currentMask) != 0) {
-				return RgbLigthState.PURPLE;
+		final NoteStep note = parent.getFocusNote();
+		if (note == null) {
+			return RgbLigthState.OFF;
+		}
+		final int length = note.recurrenceLength();
+		if (index < length && length > 1) {
+			if ((mask & note.recurrenceMask()) != 0) {
+				return RgbLigthState.GREEN; // encoder 4
 			}
 			return RgbLigthState.GRAY_1;
 		}
@@ -51,36 +58,32 @@ public class RecurrenceEditor {
 	}
 
 	private void handleMask(final boolean pressed, final int index, final int mask) {
-		if (!pressed || index >= currentLen) {
+		final NoteStep focus = parent.getFocusNote();
+		if (!pressed || focus == null || index >= focus.recurrenceLength()) {
 			return;
 		}
-		if ((mask & currentMask) != 0) {
-			currentMask &= ~mask;
-		} else {
-			currentMask |= mask;
+		// the shown pattern with this pad toggled goes to all held steps
+		final int length = focus.recurrenceLength();
+		final int newMask = focus.recurrenceMask() ^ mask;
+		final List<NoteStep> notes = parent.getHeldNotes();
+		for (final NoteStep note : notes) {
+			note.setRecurrence(length, newMask);
 		}
-		final NoteStep note = editedSteps.get(0);
-		note.setRecurrence(currentLen, currentMask);
+	}
 
+	/** Leaves the editor immediately, without waiting for the encoder and steps to be released. */
+	public void abort() {
+		pendingRelease = false;
+		layer.deactivate();
 	}
 
 	public void exitRecurrenceEdit() {
 		pendingRelease = true;
 	}
 
-	public void enterRecurrenceEdit(final List<NoteStep> notes) {
+	public void enterRecurrenceEdit() {
+		pendingRelease = false;
 		layer.activate();
-		editedSteps = notes;
-		if (notes.isEmpty()) {
-			return;
-		}
-		final NoteStep note = notes.get(0);
-		currentMask = note.recurrenceMask();
-		currentLen = note.recurrenceLength();
-	}
-
-	public void updateLength(final int newLength) {
-		currentLen = newLength;
 	}
 
 }
