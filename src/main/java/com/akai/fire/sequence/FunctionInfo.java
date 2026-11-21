@@ -15,8 +15,8 @@ public class FunctionInfo {
 		INFO1.put(NoteAssign.MUTE_3, new FunctionInfo("Delete", "Pad: clear notes\nClip: delete clip"));
 		INFO1.put(NoteAssign.MUTE_4, new FunctionInfo("Last Step", "Step: set last step\nShift+step: duplicate"));
 
-		INFO2.put(NoteAssign.MUTE_1, new FunctionInfo("Mute", "Pad: Mute"));
-		INFO2.put(NoteAssign.MUTE_2, new FunctionInfo("Solo", "Pad: Solo"));
+		INFO2.put(NoteAssign.MUTE_1, new FunctionInfo("Mute", "Pad: Mute\nSelect: unmute all"));
+		INFO2.put(NoteAssign.MUTE_2, new FunctionInfo("Solo", "Pad: Solo\nSelect: unsolo all"));
 	}
 
 	private final String name;

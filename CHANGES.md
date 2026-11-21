@@ -35,9 +35,9 @@
 - Modes will reflect step or pad mode and cycle accordingly
 
 ### Akai MIDI Mix
-- The extension now also drives an Akai MIDI Mix (second MIDI in / out port of the controller) as a mixer for 8 pads of the Drum Machine: faders = pad volume, master fader = track volume, knob rows = 2nd remote control of the pad's first device / send 3 / send 1 (send 2 for snare, clap, rim and perc pads), mute buttons = pad mute, solo = clear mutes, rec arm = remote controls page 2 of the track's last device, bank left / right = next / previous 8 pads
-- The 8 pads of the MIDI Mix always are the left or the right half of the 16 pads on the Fire. Its bank buttons go from half to half and take the Fire's page along; the Fire's Pattern up / down take the MIDI Mix along. Each change flashes the 8 pads on the Fire white
-- Whatever is moved on the MIDI Mix is shown on the Fire's display: pad, parameter, value and a bar; mute changes; and the key range of the 8 pads after a bank change
+- The extension now also drives an Akai MIDI Mix (second MIDI in / out port of the controller) as a mixer for 8 pads of the Drum Machine: faders = pad volume, master fader = track volume, knob row 1 = 2nd remote control of the pad's first device, knob rows 2 and 3 = two sends of the pad, mute buttons = switch the pad on that channel between sends 1-2 (LED off) and sends 3-4 (LED on) for rows 2 and 3, remembered per pad, solo = not used, rec arm = remote controls page 2 of the track's last device, bank left / right = next / previous 8 pads
+- The 8 pads of the MIDI Mix always are the left or the right half of the 16 pads on the Fire. Its bank buttons go from half to half and take the Fire's page along; the Fire's Pattern up / down take the MIDI Mix along. Each change flashes the 8 pads on the Fire white three times
+- Whatever is moved on the MIDI Mix is shown on the Fire's display: pad, parameter, value and a bar; the pair of sends after a switch; and the key range of the 8 pads after a bank change
 - The stand-alone MIDI Mix extension has to be switched off in Bitwig when this one is used
 
 ### Select mode
@@ -52,6 +52,10 @@
 - Activate layer by dedicated `Mute` button. (instead of resolution button) 
 - Layer is active while the button is pressed. Pin the layer by pressing Shift + Mute.
 - Keep clip colors in mute mode
+
+### Mute / solo reset
+- In the mute and solo layers the LED next to the Select button is green if no pad is muted (soloed) and red if at least one is
+- In those layers the Select button unmutes (unsolos) all pads
 
 ### Copy mode
 - Copy mode: copy the first selected step to the clipboard

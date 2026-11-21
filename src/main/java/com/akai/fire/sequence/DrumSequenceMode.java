@@ -11,6 +11,7 @@ import com.akai.fire.display.OledDisplay.TextJustification;
 import com.akai.fire.lights.BiColorLightState;
 import com.akai.fire.lights.RgbLigthState;
 import com.bitwig.extension.controller.api.CursorTrack;
+import com.bitwig.extension.controller.api.DrumPadBank;
 import com.bitwig.extension.controller.api.MultiStateHardwareLight;
 import com.bitwig.extension.controller.api.NoteStep;
 import com.bitwig.extension.controller.api.NoteStep.State;
@@ -159,6 +160,35 @@ public class DrumSequenceMode extends Layer {
         bindEditButton(driver.getButton(NoteAssign.MUTE_2), "Copy", copyHeld, stateLights[1], null, null, BiColorLightState.AMBER_HALF, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_FULL);
         bindEditButton(driver.getButton(NoteAssign.MUTE_3), "Delete/Reset", deleteHeld, stateLights[2], null, null, BiColorLightState.RED_HALF, BiColorLightState.RED_FULL, BiColorLightState.RED_FULL);
         bindEditButton(driver.getButton(NoteAssign.MUTE_4), "Last Step", fixedLengthHeld, stateLights[3], null, null, BiColorLightState.OFF, BiColorLightState.AMBER_FULL, BiColorLightState.RED_FULL);
+
+        // In the mute and solo layers the Select button resets: unmute all / unsolo all. The LED next
+        // to it tells if there is anything to reset: red = some pad is muted (soloed), green = none.
+        final BiColorButton resetButton = driver.getButton(NoteAssign.MUTE_1);
+        final DrumPadBank padBank = driver.getViewControl().getDrumPadBank();
+        padBank.hasMutedPads().markInterested();
+        padBank.hasSoloedPads().markInterested();
+        resetButton.bindPressed(muteLayer, pressed -> {
+            if (pressed) {
+                padBank.clearMutedPads();
+                oled.paramInfo("Mute", "All unmuted", cursorTrack.name().get());
+            } else {
+                oled.clearScreenDelayed();
+            }
+        }, () -> resetButton.isPressed() ? BiColorLightState.GREEN_FULL : BiColorLightState.OFF);
+        muteLayer.bindLightState(
+                () -> padBank.hasMutedPads().get() ? BiColorLightState.TRACK_RED : BiColorLightState.TRACK_GREEN,
+                stateLights[0]);
+        resetButton.bindPressed(soloLayer, pressed -> {
+            if (pressed) {
+                padBank.clearSoloedPads();
+                oled.paramInfo("Solo", "All unsoloed", cursorTrack.name().get());
+            } else {
+                oled.clearScreenDelayed();
+            }
+        }, () -> resetButton.isPressed() ? BiColorLightState.GREEN_FULL : BiColorLightState.OFF);
+        soloLayer.bindLightState(
+                () -> padBank.hasSoloedPads().get() ? BiColorLightState.TRACK_RED : BiColorLightState.TRACK_GREEN,
+                stateLights[0]);
     }
 
     private void initButtonBehaviour(final DrumSequencerExtension driver) {

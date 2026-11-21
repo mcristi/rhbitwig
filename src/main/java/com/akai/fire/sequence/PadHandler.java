@@ -40,11 +40,12 @@ public class PadHandler implements MidiMix.FirePads {
     private int drumScrollOffset;
     // told when the pad page changes (the MIDI Mix, which is tied to it)
     private IntConsumer pageListener;
-    // keys whose pads flash until the given time, to show what the MIDI Mix covers
-    private static final long FLASH_MS = 800;
+    // keys whose pads flash, to show what the MIDI Mix covers: white and back, this many times
+    private static final int FLASH_COUNT = 3;
+    private static final long FLASH_PHASE_MS = 200;
     private int flashFirstKey = -1;
     private int flashCount = 0;
-    private long flashUntil = -1;
+    private long flashStart = -1;
     // by key, for all pads of the Drum Machine: has the pad something on it?
     private final boolean[] padExists = new boolean[128];
     // highest pad page position at which all 16 pads still are valid keys (0..127)
@@ -418,14 +419,18 @@ public class PadHandler implements MidiMix.FirePads {
     public void flash(final int firstKey, final int count) {
         flashFirstKey = firstKey;
         flashCount = count;
-        flashUntil = System.currentTimeMillis() + FLASH_MS;
+        flashStart = System.currentTimeMillis();
     }
 
     /** @return true while the pad at the given position should be shown white as part of a flash */
     boolean isFlashLit(final int padIndex) {
         final int key = drumScrollOffset + padIndex;
-        return System.currentTimeMillis() < flashUntil && key >= flashFirstKey && key < flashFirstKey + flashCount
-                && !parent.isSourceBlinkDark();
+        if (flashStart == -1 || key < flashFirstKey || key >= flashFirstKey + flashCount) {
+            return false;
+        }
+        // phases of white, own color, white, .. counted from the start, so every flash is whole
+        final long phase = (System.currentTimeMillis() - flashStart) / FLASH_PHASE_MS;
+        return phase < FLASH_COUNT * 2 - 1 && phase % 2 == 0;
     }
 
     /** Lit if the pads that page up would bring in include at least one with a device on it. */

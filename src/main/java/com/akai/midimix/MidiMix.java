@@ -23,10 +23,11 @@ import com.bitwig.extensions.framework.values.Midi;
  * Fire so that the Fire's display can show what the MIDI Mix is changing.
  * <ul>
  * <li>Faders: pad volume. Master fader: track volume.</li>
- * <li>Knob row 1: 2nd remote control of the pad's first device. Row 2: send 3. Row 3: send 1, or
- * send 2 for snare / clap / rim / perc pads.</li>
- * <li>Mute buttons: pad mute. Solo: clear all mutes. Rec arm: remote controls page 2 of the track's
- * last device. Bank left / right: next / previous 8 pads.</li>
+ * <li>Knob row 1: 2nd remote control of the pad's first device. Rows 2 and 3: two sends of the
+ * pad, 1 and 2 or 3 and 4.</li>
+ * <li>Mute buttons: switch the pad on that channel between sends 1-2 (LED off) and sends 3-4 (LED
+ * on) for rows 2 and 3; each pad remembers its own. Solo: not used. Rec arm: remote controls page 2 of the track's last device. Bank left /
+ * right: next / previous 8 pads.</li>
  * </ul>
  * The 8 pads always are the left or the right half of the 16 pads on the Fire: the bank buttons go
  * from half to half and take the Fire's page along, and the Fire's page buttons take the MIDI Mix
@@ -78,8 +79,7 @@ public class MidiMix {
 
     private static final int TOTAL_PADS = 128;
     private static final double VOLUME_0DB = 0.7937005259840997;
-    private static final int NUM_SENDS = 3;
-    private static final String[] ROW2_OVERRIDE_PATTERNS = {"snare", "clap", "rim", "perc"};
+    private static final int NUM_SENDS = 4;
     private static final String[] KEY_NAMES = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 
     // The display follows a control for this long after its last movement, and is redrawn at most
@@ -93,14 +93,13 @@ public class MidiMix {
     private final CursorTrack cursorTrack;
     private final DrumPadBank drumPadBank;
     private boolean hasDrumPads = false;
-    private final boolean[] chainMuted = new boolean[NUM_CHANNELS];
-    private final boolean[] chainActive = new boolean[NUM_CHANNELS];
+    // per pad (by key): false = knob rows 2 and 3 are sends 1 and 2, true = sends 3 and 4
+    private final boolean[] secondSendPair = new boolean[TOTAL_PADS];
     private final boolean[] padExists = new boolean[TOTAL_PADS];
     private int scrollPosition = 0;
     private final CursorRemoteControlsPage[] chainRemoteControls = new CursorRemoteControlsPage[NUM_CHANNELS];
     private final AbsoluteHardwareKnob[][] hwKnobs = new AbsoluteHardwareKnob[NUM_KNOB_ROWS][NUM_CHANNELS];
     private final Send[][] chainSends = new Send[NUM_SENDS][NUM_CHANNELS];
-    private final String[] chainName = new String[NUM_CHANNELS];
     private final CursorRemoteControlsPage deviceButtonControls;
     private final boolean[] buttonState = new boolean[NUM_CHANNELS];
 
@@ -110,7 +109,6 @@ public class MidiMix {
     private long shownSince = -1;
     private long lastRedraw = -1;
     private boolean redrawPending = false;
-    // a mute button was pressed: show the new state of that pad when Bitwig reports it
     // the values Bitwig reports for the knobs while starting up are not the user turning them
     private boolean started = false;
     private FirePads fire;
@@ -118,8 +116,6 @@ public class MidiMix {
     private int half = 0;
     // a bank button was pressed: show the new range on the display when the position arrives
     private long bankPressedAt = -1;
-    private int mutePressed = -1;
-    private long mutePressedAt = -1;
 
     /**
      * @param cursorTrack the track the Fire works on, so that both controllers follow (and pin) the
@@ -139,7 +135,12 @@ public class MidiMix {
             for (int col = 0; col < NUM_CHANNELS; col++) {
                 final AbsoluteHardwareKnob knob = surface.createAbsoluteHardwareKnob("MIDIMIX_KNOB_" + row + "_" + col);
                 knob.setAdjustValueMatcher(midiIn.createAbsoluteCCValueMatcher(0, CC_KNOBS[row][col]));
-                knob.disableTakeOver();
+                if (row == 0) {
+                    knob.disableTakeOver();
+                }
+                // Rows 2 and 3 change what they control (the pair of sends, and the pad when the
+                // bank moves), so they keep Bitwig's takeover: the knob only takes hold once it
+                // has reached the send's value, instead of making it jump.
                 hwKnobs[row][col] = knob;
                 // Bitwig keeps the messages of a bound knob to itself, they never reach onMidi:
                 // the knob's own value is what tells that it was turned
@@ -192,6 +193,10 @@ public class MidiMix {
         drumPadBank.scrollPosition().addValueObserver(pos -> {
             scrollPosition = pos;
             updateBankLeds();
+            // other pads: each has its own pair of sends
+            for (int i = 0; i < NUM_CHANNELS; i++) {
+                updateSendBinding(i);
+            }
             if (started && fire != null) {
                 fire.flash(pos, NUM_CHANNELS);
             }
@@ -204,7 +209,6 @@ public class MidiMix {
         for (int i = 0; i < NUM_CHANNELS; i++) {
             final DrumPad pad = drumPadBank.getItemAt(i);
             watch(pad.volume());
-            pad.mute().markInterested();
             pad.exists().markInterested();
             pad.name().markInterested();
 
@@ -220,28 +224,9 @@ public class MidiMix {
             watch(chainRemoteControls[i].getParameter(1));
 
             hwKnobs[0][i].setBinding(chainRemoteControls[i].getParameter(1));
-            hwKnobs[1][i].setBinding(chainSends[2][i]);
-            hwKnobs[2][i].setBinding(chainSends[0][i]);
-
-            final int idx = i;
-            pad.name().addValueObserver(name -> {
-                chainName[idx] = name.toLowerCase();
-                updateKnobBinding(idx);
-            });
-            pad.exists().addValueObserver(exists -> {
-                chainActive[idx] = exists;
-                updateMuteLed(idx);
-            });
-            pad.mute().addValueObserver(muted -> {
-                chainMuted[idx] = muted;
-                updateMuteLed(idx);
-                updateSoloLed();
-                if (idx == mutePressed && System.currentTimeMillis() - mutePressedAt < SHOWN_MS) {
-                    mutePressed = -1;
-                    showMessage(pad.name().get(), "Mute", muted ? "Muted" : "Unmuted");
-                }
-            });
+            updateSendBinding(i);
         }
+        sendLed(NOTE_SOLO, OFF);
     }
 
     private void onMidi(final int status, final int data1, final int data2) {
@@ -277,9 +262,7 @@ public class MidiMix {
     private void handleNoteOn(final int note) {
         for (int i = 0; i < NUM_CHANNELS; i++) {
             if (note == NOTE_MUTE[i] || note == NOTE_SOLO_MUTE[i]) {
-                mutePressed = i;
-                mutePressedAt = System.currentTimeMillis();
-                drumPadBank.getItemAt(i).mute().toggle();
+                toggleSendPair(i);
                 return;
             }
         }
@@ -292,12 +275,6 @@ public class MidiMix {
                 follow(parameter, cursorTrack.name().get());
                 return;
             }
-        }
-
-        if (note == NOTE_SOLO) {
-            drumPadBank.clearMutedPads();
-            showMessage(cursorTrack.name().get(), "Mute", "All unmuted");
-            return;
         }
 
         if (note == NOTE_BANK_LEFT) {
@@ -341,36 +318,39 @@ public class MidiMix {
         }
     }
 
-    /** @return the parameter the knob is bound to, see updateKnobBinding */
+    /** @return the parameter the knob is bound to, see updateSendBinding */
     private Parameter knobTarget(final int row, final int channel) {
         if (row == 0) {
             return chainRemoteControls[channel].getParameter(1);
         }
-        if (row == 1) {
-            return chainSends[2][channel];
-        }
-        return matchesRow2Override(channel) ? chainSends[1][channel] : chainSends[0][channel];
+        // rows 2 and 3: first and second send of the channel's pair
+        return chainSends[(isSecondSendPair(channel) ? 2 : 0) + row - 1][channel];
     }
 
-    private void updateKnobBinding(final int channel) {
-        if (matchesRow2Override(channel)) {
-            hwKnobs[2][channel].setBinding(chainSends[1][channel]);
-        } else {
-            hwKnobs[2][channel].setBinding(chainSends[0][channel]);
-        }
+    /** @return the key of the pad on the channel */
+    private int padKey(final int channel) {
+        return Math.min(TOTAL_PADS - 1, scrollPosition + channel);
     }
 
-    private boolean matchesRow2Override(final int channel) {
-        final String name = chainName[channel];
-        if (name == null) {
-            return false;
-        }
-        for (final String pattern : ROW2_OVERRIDE_PATTERNS) {
-            if (name.contains(pattern)) {
-                return true;
-            }
-        }
-        return false;
+    private boolean isSecondSendPair(final int channel) {
+        return secondSendPair[padKey(channel)];
+    }
+
+    /** Binds knob rows 2 and 3 of the channel to its current pair of sends and shows the pair on the LED. */
+    private void updateSendBinding(final int channel) {
+        hwKnobs[1][channel].setBinding(knobTarget(1, channel));
+        hwKnobs[2][channel].setBinding(knobTarget(2, channel));
+        final int led = isSecondSendPair(channel) ? ON : OFF;
+        sendLed(NOTE_MUTE[channel], led);
+        sendLed(NOTE_SOLO_MUTE[channel], led);
+    }
+
+    private void toggleSendPair(final int channel) {
+        secondSendPair[padKey(channel)] = !isSecondSendPair(channel);
+        updateSendBinding(channel);
+        final String pair = isSecondSendPair(channel) ? "Sends 3-4" : "Sends 1-2";
+        final String names = knobTarget(1, channel).name().get() + " / " + knobTarget(2, channel).name().get();
+        showMessage(drumPadBank.getItemAt(channel).name().get(), pair, names);
     }
 
     // ---- display on the Fire
@@ -465,23 +445,6 @@ public class MidiMix {
     private void updateBankLeds() {
         sendLed(NOTE_BANK_LEFT, pageHasContent(scrollPosition + NUM_CHANNELS) ? ON : OFF);
         sendLed(NOTE_BANK_RIGHT, pageHasContent(scrollPosition - NUM_CHANNELS) ? ON : OFF);
-    }
-
-    private void updateMuteLed(final int idx) {
-        final int led = chainActive[idx] && !chainMuted[idx] ? ON : OFF;
-        sendLed(NOTE_MUTE[idx], led);
-        sendLed(NOTE_SOLO_MUTE[idx], led);
-    }
-
-    private void updateSoloLed() {
-        boolean anyMuted = false;
-        for (final boolean muted : chainMuted) {
-            if (muted) {
-                anyMuted = true;
-                break;
-            }
-        }
-        sendLed(NOTE_SOLO, anyMuted ? ON : OFF);
     }
 
     private void sendLed(final int note, final int value) {

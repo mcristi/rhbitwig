@@ -18,6 +18,9 @@ public class BiColorLightState extends InternalHardwareLightState {
 	public static final BiColorLightState GREEN_FULL = new BiColorLightState(3);
 	public static final BiColorLightState RED_FULL = new BiColorLightState(3);
 	public static final BiColorLightState AMBER_FULL = new BiColorLightState(4);
+	// the rectangular LEDs next to the pad rows are red / green
+	public static final BiColorLightState TRACK_RED = new BiColorLightState(3);
+	public static final BiColorLightState TRACK_GREEN = new BiColorLightState(4);
 	public static final BiColorLightState MODE_CHANNEL = new BiColorLightState(0);
 	public static final BiColorLightState MODE_MIXER = new BiColorLightState(1);
 	public static final BiColorLightState MODE_USER1 = new BiColorLightState(2);
