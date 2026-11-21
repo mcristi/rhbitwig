@@ -17,6 +17,8 @@ public class RecurrenceEditor {
 	private final DrumSequenceMode parent;
 	private final Layer layer;
 	private boolean pendingRelease;
+	// cycles of the pattern that are switched off: white enough to stand out from unused pads
+	private static final RgbLigthState CYCLE_OFF = new RgbLigthState(55, 55, 55, true);
 
 	public RecurrenceEditor(final AkaiFireDrumSeqExtension driver, final DrumSequenceMode parent) {
 		this.parent = parent;
@@ -52,7 +54,7 @@ public class RecurrenceEditor {
 			if ((mask & note.recurrenceMask()) != 0) {
 				return RgbLigthState.GREEN; // encoder 4
 			}
-			return RgbLigthState.GRAY_1;
+			return CYCLE_OFF;
 		}
 		return RgbLigthState.OFF;
 	}
