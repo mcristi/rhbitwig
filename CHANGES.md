@@ -4,8 +4,9 @@
 - Shift + Pad ⇒ cycle and apply color from a predefined color list 
 - Shift + Clip ⇒ cycle and apply color from a predefined color list
 - Shift + Last step => duplicate clip content
+- Step colors reflect the note velocity: pad color at the normal velocity, fading to a darker, grayish color for lower velocities and to a darker, more saturated color up to the accent velocity
 - New clip action (on pressing empty pad) copies the previous clip to preserve automations
-- Delete clip is the default behavior (clear steps delete the automations as well) 
+- Delete clip is the default behavior (cursorClip.clearSteps() deletes the automations as well) 
 
 ### Buttons
 - Accent value is reflected on the note repeat

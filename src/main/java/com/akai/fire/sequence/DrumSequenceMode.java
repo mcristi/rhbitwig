@@ -316,7 +316,9 @@ public class DrumSequenceMode extends Layer {
             if (index == playingStep) {
                 return padHandler.getCurrentPadColor().getBrightend();
             }
-            return padHandler.getCurrentPadColor();
+            return padHandler.getCurrentPadColor().getForVelocity(
+                    (int) Math.round(assignments[index].velocity() * 127), accentHandler.getStandardVel(),
+                    accentHandler.getAccentedVel());
 
         }
         return RgbLigthState.OFF;

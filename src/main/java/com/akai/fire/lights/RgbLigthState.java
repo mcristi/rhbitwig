@@ -2,6 +2,7 @@ package com.akai.fire.lights;
 
 import java.util.Objects;
 
+import com.akai.fire.ColorLookup;
 import com.bitwig.extension.controller.api.HardwareLightVisualState;
 import com.bitwig.extension.controller.api.InternalHardwareLightState;
 
@@ -11,6 +12,7 @@ public class RgbLigthState extends InternalHardwareLightState {
 	private static final int DIM_FACTOR = 2;
 	private static final int BRIGHT_FACTOR = 50;
 	private static final int MAX_BRIGHT_FACTOR = 70;
+	private static final int VELOCITY_LEVELS = 128;
 
 	public static final RgbLigthState OFF = new RgbLigthState(0, 0, 0, true);
 	public static final RgbLigthState PURPLE = new RgbLigthState(80, 0, 80, true);
@@ -26,6 +28,9 @@ public class RgbLigthState extends InternalHardwareLightState {
 	private RgbLigthState dimmed;
 	private RgbLigthState brightend;
 	private RgbLigthState brightest;
+	private RgbLigthState[] velocityVariants;
+	private int velocityVariantsNormal;
+	private int velocityVariantsAccent;
 
 	public RgbLigthState(final int red, final int green, final int blue, final boolean variants) {
 		this((byte) red, (byte) green, (byte) blue, variants);
@@ -68,6 +73,30 @@ public class RgbLigthState extends InternalHardwareLightState {
 
 	public RgbLigthState getBrightend() {
 		return brightend != null ? brightend : this;
+	}
+
+	/**
+	 * @param velocity note velocity as MIDI value 0..127
+	 * @param normalVelocity MIDI velocity that shows this color unchanged
+	 * @param accentVelocity MIDI velocity from which the color is at its deepest
+	 * @return this color adjusted to the velocity (see ColorLookup.getVelocityColor), cached per velocity
+	 */
+	public RgbLigthState getForVelocity(final int velocity, final int normalVelocity, final int accentVelocity) {
+		final int level = Math.max(0, Math.min(VELOCITY_LEVELS - 1, velocity));
+		if (level == normalVelocity) {
+			return this;
+		}
+		if (velocityVariants == null || velocityVariantsNormal != normalVelocity
+				|| velocityVariantsAccent != accentVelocity) {
+			velocityVariants = new RgbLigthState[VELOCITY_LEVELS];
+			velocityVariantsNormal = normalVelocity;
+			velocityVariantsAccent = accentVelocity;
+		}
+		if (velocityVariants[level] == null) {
+			velocityVariants[level] = ColorLookup.getVelocityColor(this, level / 127.0, normalVelocity / 127.0,
+					accentVelocity / 127.0);
+		}
+		return velocityVariants[level];
 	}
 
 	public RgbLigthState getBrightest() {

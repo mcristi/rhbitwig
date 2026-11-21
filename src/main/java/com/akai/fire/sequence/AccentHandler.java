@@ -17,6 +17,14 @@ public class AccentHandler {
 		this.parent = drumSequenceMode;
 	}
 
+	public int getStandardVel() {
+		return velStandard;
+	}
+
+	public int getAccentedVel() {
+		return velAccented;
+	}
+
 	public int getCurrenVel() {
 		return accentActive.get() ? velAccented : velStandard;
 	}
