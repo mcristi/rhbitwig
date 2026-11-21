@@ -34,6 +34,12 @@
   - Recurrence (green): pattern editor as before
 - Modes will reflect step or pad mode and cycle accordingly
 
+### Akai MIDI Mix
+- The extension now also drives an Akai MIDI Mix (second MIDI in / out port of the controller) as a mixer for 8 pads of the Drum Machine: faders = pad volume, master fader = track volume, knob rows = 2nd remote control of the pad's first device / send 3 / send 1 (send 2 for snare, clap, rim and perc pads), mute buttons = pad mute, solo = clear mutes, rec arm = remote controls page 2 of the track's last device, bank left / right = next / previous 8 pads
+- The 8 pads of the MIDI Mix always are the left or the right half of the 16 pads on the Fire. Its bank buttons go from half to half and take the Fire's page along; the Fire's Pattern up / down take the MIDI Mix along. Each change flashes the 8 pads on the Fire white
+- Whatever is moved on the MIDI Mix is shown on the Fire's display: pad, parameter, value and a bar; mute changes; and the key range of the 8 pads after a bank change
+- The stand-alone MIDI Mix extension has to be switched off in Bitwig when this one is used
+
 ### Select mode
 - Select + Pad: select the relevant instrument device in the currently selected drum chain for the given pad
 

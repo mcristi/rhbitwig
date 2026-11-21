@@ -278,6 +278,9 @@ class PadContainer {
     }
 
     public RgbLigthState mutingColors() {
+        if (padHandler.isFlashLit(index)) {
+            return RgbLigthState.WHITE;
+        }
         if (!exists) {
             return RgbLigthState.OFF;
         }
@@ -289,6 +292,9 @@ class PadContainer {
     }
 
     public RgbLigthState soloingColors() {
+        if (padHandler.isFlashLit(index)) {
+            return RgbLigthState.WHITE;
+        }
         if (!exists) {
             return RgbLigthState.OFF;
         }
@@ -336,6 +342,10 @@ class PadContainer {
     }
 
     public RgbLigthState getColor() {
+        // the MIDI Mix moved to these pads
+        if (padHandler.isFlashLit(index)) {
+            return RgbLigthState.WHITE;
+        }
         // with Copy held the selected pad is what gets copied: blink it like a copied step
         if (selected && padHandler.parent.isCopyHeld() && padHandler.parent.isSourceBlinkDark()) {
             return RgbLigthState.GRAY_1;

@@ -1,6 +1,6 @@
 package com.akai.fire.sequence;
 
-import com.akai.fire.AkaiFireDrumSeqExtension;
+import com.akai.fire.DrumSequencerExtension;
 import com.akai.fire.lights.BiColorLightState;
 import com.bitwig.extension.controller.api.Arpeggiator;
 import com.bitwig.extension.controller.api.NoteInput;
@@ -20,7 +20,7 @@ public class NoteRepeatHandler {
 	private final NoteInput noteInput;
 	private int selectedArpIndex;
 
-	public NoteRepeatHandler(final AkaiFireDrumSeqExtension driver, final DrumSequenceMode drumSequenceMode) {
+	public NoteRepeatHandler(final DrumSequencerExtension driver, final DrumSequenceMode drumSequenceMode) {
 		this.parent = drumSequenceMode;
 		this.noteInput = driver.getNoteInput();
 		this.setNoteInputVelocity(parent.getAccentHandler().getCurrenVel());

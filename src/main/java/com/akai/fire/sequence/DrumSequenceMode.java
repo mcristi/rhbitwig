@@ -1,6 +1,6 @@
 package com.akai.fire.sequence;
 
-import com.akai.fire.AkaiFireDrumSeqExtension;
+import com.akai.fire.DrumSequencerExtension;
 import com.akai.fire.NoteAssign;
 import com.akai.fire.control.BiColorButton;
 import com.akai.fire.control.RgbButton;
@@ -86,7 +86,7 @@ public class DrumSequenceMode extends Layer {
 
     public ControllerHost host;
 
-    public DrumSequenceMode(final AkaiFireDrumSeqExtension driver) {
+    public DrumSequenceMode(final DrumSequencerExtension driver) {
         super(driver.getLayers(), "DRUM_SEQUENCE_LAYER");
         oled = driver.getOled();
         mainLayer = new Layer(getLayers(), getName() + "_MAIN");
@@ -153,7 +153,7 @@ public class DrumSequenceMode extends Layer {
         host = driver.host;
     }
 
-    private void initModeButtons(final AkaiFireDrumSeqExtension driver) {
+    private void initModeButtons(final DrumSequencerExtension driver) {
         final MultiStateHardwareLight[] stateLights = driver.getStateLights();
         bindEditButton(driver.getButton(NoteAssign.MUTE_1), "Select", selectHeld, stateLights[0], null, null, BiColorLightState.OFF, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_FULL);
         bindEditButton(driver.getButton(NoteAssign.MUTE_2), "Copy", copyHeld, stateLights[1], null, null, BiColorLightState.AMBER_HALF, BiColorLightState.AMBER_FULL, BiColorLightState.AMBER_FULL);
@@ -161,7 +161,7 @@ public class DrumSequenceMode extends Layer {
         bindEditButton(driver.getButton(NoteAssign.MUTE_4), "Last Step", fixedLengthHeld, stateLights[3], null, null, BiColorLightState.OFF, BiColorLightState.AMBER_FULL, BiColorLightState.RED_FULL);
     }
 
-    private void initButtonBehaviour(final AkaiFireDrumSeqExtension driver) {
+    private void initButtonBehaviour(final DrumSequencerExtension driver) {
 
         final BiColorButton accentButton = driver.getButton(NoteAssign.STEP_SEQ);
         accentButton.bindPressed(mainLayer, accentHandler::handlePressed, accentHandler::getLightState);
@@ -229,7 +229,7 @@ public class DrumSequenceMode extends Layer {
                 () -> gridButtonState(shiftRightButton, positionHandler.canScrollRight()));
     }
 
-    private void initSequenceSection(final AkaiFireDrumSeqExtension driver) {
+    private void initSequenceSection(final DrumSequencerExtension driver) {
         final RgbButton[] rgbButtons = driver.getRgbButtons();
         for (int i = 0; i < 32; i++) {
             final RgbButton button = rgbButtons[i + 32];
@@ -640,18 +640,25 @@ public class DrumSequenceMode extends Layer {
     /**
      * Writes the pattern for the selected pad into the clip on display.
      *
+     * @param withValues false to write only position, velocity and length
      * @param whenDone runs once Bitwig has reported all the notes and they got their values, or after
      *                 a second at the latest
      */
-    void writePattern(final List<StepData> pattern, final Runnable whenDone) {
+    void writePattern(final List<StepData> pattern, final boolean withValues, final Runnable whenDone) {
         expectedNoteChanges.clear();
         final int id = ++patternWriteId;
         afterPatternWritten = whenDone;
         for (final StepData step : pattern) {
-            expectedNoteChanges.put(step.x(), step::applyTo);
+            if (withValues) {
+                expectedNoteChanges.put(step.x(), step::applyTo);
+            }
             cursorClip.setStep(step.x(), 0, step.midiVelocity(), step.duration());
         }
-        host.scheduleTask(() -> patternWritten(id), 1000);
+        if (expectedNoteChanges.isEmpty()) {
+            patternWritten(id);
+        } else {
+            host.scheduleTask(() -> patternWritten(id), 1000);
+        }
     }
 
     private void patternWritten(final int id) {
@@ -785,10 +792,6 @@ public class DrumSequenceMode extends Layer {
 
     public void clearExpectedNoteChanges() {
         expectedNoteChanges.clear();
-    }
-
-    public void registerExpectedNoteChange(final int x, final NoteStep noteStep) {
-        expectedNoteChanges.put(noteStep.x(), dest -> applyValues(dest, noteStep));
     }
 
     public BooleanValueObject getLengthDisplay() {

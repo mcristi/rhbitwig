@@ -1,6 +1,6 @@
 package com.akai.fire.sequence;
 
-import com.akai.fire.AkaiFireDrumSeqExtension;
+import com.akai.fire.DrumSequencerExtension;
 import com.akai.fire.ColorLookup;
 import com.akai.fire.ColorUtils;
 import com.akai.fire.control.RgbButton;
@@ -40,7 +40,7 @@ public class SeqClipHandler {
     private int patternCopyTarget = -1;
     private int patternCopyId = 0;
 
-    public SeqClipHandler(final AkaiFireDrumSeqExtension driver, final DrumSequenceMode parent, final Layer clipLayer) {
+    public SeqClipHandler(final DrumSequencerExtension driver, final DrumSequenceMode parent, final Layer clipLayer) {
         this.parent = parent;
         this.cursorClip = parent.getCursorClip();
         cursorTrack = driver.getViewControl().getCursorTrack();
@@ -51,7 +51,7 @@ public class SeqClipHandler {
         initClipControlButtons(clipLayer, driver);
     }
 
-    private void initClipControlButtons(final Layer clipLayer, final AkaiFireDrumSeqExtension driver) {
+    private void initClipControlButtons(final Layer clipLayer, final DrumSequencerExtension driver) {
         final RgbButton[] rgbButtons = driver.getRgbButtons();
         for (int i = 0; i < 16; i++) {
             final RgbButton button = rgbButtons[i + 16];
@@ -233,7 +233,7 @@ public class SeqClipHandler {
             // notes are expected
             host.scheduleTask(() -> {
                 if (id == patternCopyId && patternCopyTarget == index) {
-                    parent.writePattern(pattern, () -> finishPatternCopy(id, source));
+                    parent.writePattern(pattern, true, () -> finishPatternCopy(id, source));
                 }
             }, 100);
         };

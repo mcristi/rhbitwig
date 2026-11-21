@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.akai.fire.AkaiFireDrumSeqExtension;
+import com.akai.fire.DrumSequencerExtension;
 import com.akai.fire.NoteAssign;
 import com.akai.fire.control.BiColorButton;
 import com.akai.fire.control.TouchEncoder;
@@ -60,7 +60,7 @@ public class SequencEncoderHandler extends Layer {
 		void set(NoteStep step, int value);
 	}
 
-	public SequencEncoderHandler(final DrumSequenceMode drumMode, final AkaiFireDrumSeqExtension driver,
+	public SequencEncoderHandler(final DrumSequenceMode drumMode, final DrumSequencerExtension driver,
 			final PadHandler padHandler) {
 		super(driver.getLayers(), "Encoder_layer");
 		this.parent = drumMode;

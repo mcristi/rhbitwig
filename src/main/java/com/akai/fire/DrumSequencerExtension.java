@@ -7,6 +7,7 @@ import com.akai.fire.display.OledDisplay;
 import com.akai.fire.lights.BiColorLightState;
 import com.akai.fire.lights.RgbLigthState;
 import com.akai.fire.sequence.DrumSequenceMode;
+import com.akai.midimix.MidiMix;
 import com.bitwig.extension.api.util.midi.ShortMidiMessage;
 import com.bitwig.extension.callback.ShortMidiMessageReceivedCallback;
 import com.bitwig.extension.controller.ControllerExtension;
@@ -19,7 +20,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-public class AkaiFireDrumSeqExtension extends ControllerExtension {
+public class DrumSequencerExtension extends ControllerExtension {
     private HardwareSurface surface;
     private Transport transport;
     private MidiIn midiIn;
@@ -46,13 +47,14 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
     private final Map<NoteAssign, BiColorButton> controlButtons = new HashMap<>();
     private NoteInput noteInput;
     private DrumSequenceMode drumSequenceMode;
+    private MidiMix midiMix;
     private ViewCursorControl viewControl;
 
     private OledDisplay oled;
     public ControllerHost host;
     private TouchEncoder mainEncoder;
 
-    protected AkaiFireDrumSeqExtension(final AkaiFireDrumSeqDefinition definition, final ControllerHost host) {
+    protected DrumSequencerExtension(final DrumSequencerDefinition definition, final ControllerHost host) {
         super(definition, host);
     }
 
@@ -80,6 +82,12 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
         //setUpPreferences();
 
         drumSequenceMode = new DrumSequenceMode(this);
+        // second pair of ports: the MIDI Mix, which shows what it changes on the Fire's display
+        midiMix = new MidiMix(host, surface, host.getMidiInPort(1), host.getMidiOutPort(1),
+                viewControl.getCursorTrack(), oled);
+        // the 8 pads of the MIDI Mix are one half of the 16 pads on the Fire
+        midiMix.linkTo(drumSequenceMode.getPadHandler());
+        drumSequenceMode.getPadHandler().setPageListener(midiMix::firePageChanged);
         midiOut.sendSysex(DEV_INQ);
 
         oled.showLogo();
@@ -275,6 +283,7 @@ public class AkaiFireDrumSeqExtension extends ControllerExtension {
 
     @Override
     public void exit() {
+        midiMix.exit();
         // The Fire keeps its last LED, pad and OLED state, so switch everything off.
         for (final NoteAssign assign : NoteAssign.values()) {
             if (assign != NoteAssign.KNOB_MODE_LIGHT && assign != NoteAssign.ENCODER_PRESS) {

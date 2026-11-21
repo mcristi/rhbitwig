@@ -1,11 +1,11 @@
 package com.akai.fire.display;
 
-import static com.akai.fire.AkaiFireDrumSeqExtension.DEVICE_ID;
-import static com.akai.fire.AkaiFireDrumSeqExtension.MAN_ID_AKAI;
-import static com.akai.fire.AkaiFireDrumSeqExtension.PRODUCT_ID;
-import static com.akai.fire.AkaiFireDrumSeqExtension.SE_EN;
-import static com.akai.fire.AkaiFireDrumSeqExtension.SE_OLED_RGB;
-import static com.akai.fire.AkaiFireDrumSeqExtension.SE_ST;
+import static com.akai.fire.DrumSequencerExtension.DEVICE_ID;
+import static com.akai.fire.DrumSequencerExtension.MAN_ID_AKAI;
+import static com.akai.fire.DrumSequencerExtension.PRODUCT_ID;
+import static com.akai.fire.DrumSequencerExtension.SE_EN;
+import static com.akai.fire.DrumSequencerExtension.SE_OLED_RGB;
+import static com.akai.fire.DrumSequencerExtension.SE_ST;
 
 import java.text.Normalizer;
 import java.util.List;

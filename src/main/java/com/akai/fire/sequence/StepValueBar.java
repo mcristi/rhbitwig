@@ -2,7 +2,7 @@ package com.akai.fire.sequence;
 
 import java.util.List;
 
-import com.akai.fire.AkaiFireDrumSeqExtension;
+import com.akai.fire.DrumSequencerExtension;
 import com.akai.fire.control.RgbButton;
 import com.akai.fire.lights.RgbLigthState;
 import com.bitwig.extension.controller.api.NoteStep;
@@ -29,7 +29,7 @@ public class StepValueBar {
 	private final Layer layer;
 	private NoteStepAccess active;
 
-	public StepValueBar(final AkaiFireDrumSeqExtension driver, final DrumSequenceMode parent) {
+	public StepValueBar(final DrumSequencerExtension driver, final DrumSequenceMode parent) {
 		this.parent = parent;
 		layer = new Layer(driver.getLayers(), parent.getName() + "_VALUE_BAR");
 		final RgbButton[] rgbButtons = driver.getRgbButtons();

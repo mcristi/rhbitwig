@@ -1,6 +1,6 @@
 package com.akai.fire.sequence;
 
-import com.akai.fire.AkaiFireDrumSeqExtension;
+import com.akai.fire.DrumSequencerExtension;
 import com.akai.fire.ColorUtils;
 import com.akai.fire.NoteAssign;
 import com.akai.fire.ViewCursorControl;
@@ -12,14 +12,16 @@ import com.akai.fire.display.OledDisplay.TextJustification;
 import com.akai.fire.lights.BiColorLightState;
 import com.akai.fire.lights.RgbLigthState;
 import com.akai.fire.sequence.NoteAction.Type;
+import com.akai.midimix.MidiMix;
 import com.bitwig.extension.controller.api.*;
 import com.bitwig.extensions.framework.Layer;
 import com.bitwig.extensions.framework.values.BooleanValueObject;
 
 import java.util.ArrayList;
+import java.util.function.IntConsumer;
 import java.util.List;
 
-public class PadHandler {
+public class PadHandler implements MidiMix.FirePads {
 
     final DrumSequenceMode parent;
     private final PinnableCursorClip cursorClip;
@@ -36,6 +38,13 @@ public class PadHandler {
     PadContainer selectedPad;
     int selectedPadIndex = -1;
     private int drumScrollOffset;
+    // told when the pad page changes (the MIDI Mix, which is tied to it)
+    private IntConsumer pageListener;
+    // keys whose pads flash until the given time, to show what the MIDI Mix covers
+    private static final long FLASH_MS = 800;
+    private int flashFirstKey = -1;
+    private int flashCount = 0;
+    private long flashUntil = -1;
     // by key, for all pads of the Drum Machine: has the pad something on it?
     private final boolean[] padExists = new boolean[128];
     // highest pad page position at which all 16 pads still are valid keys (0..127)
@@ -58,7 +67,7 @@ public class PadHandler {
     private final DisplayTarget displayTarget;
     private final DisplayInfo padDisplayInfo;
 
-    public PadHandler(final AkaiFireDrumSeqExtension driver, final DrumSequenceMode parent, final Layer mainLayer,
+    public PadHandler(final DrumSequencerExtension driver, final DrumSequenceMode parent, final Layer mainLayer,
                       final Layer muteLayer, final Layer soloLayer) {
         this.parent = parent;
         cursorClip = parent.getCursorClip();
@@ -123,7 +132,7 @@ public class PadHandler {
         button.bindPressed(mainLayer, p -> handlePadSelection(pad, p), pad::getColor);
     }
 
-    private void initButtons(final Layer mainLayer, final AkaiFireDrumSeqExtension driver) {
+    private void initButtons(final Layer mainLayer, final DrumSequencerExtension driver) {
         final BiColorButton browerNrButton = driver.getButton(NoteAssign.BROWSER);
         browerNrButton.bindPressed(mainLayer, noteRepeatHandler::handlePressed, noteRepeatHandler::getLightState);
         final BiColorButton upNavButon = driver.getButton(NoteAssign.PATTERN_UP);
@@ -171,26 +180,19 @@ public class PadHandler {
         pad.selectRelevantDevice();
     }
 
-    void executeCopy(final List<NoteStep> notes, final boolean copyParams) {
-        parent.clearExpectedNoteChanges();
-        cursorClip.clearStepsAtY(0, 0);
-        for (final NoteStep noteStep : notes) {
-            double duration = noteStep.duration();
-            if (duration == 0) {
-                // TODO: this is an API bug. duration() returns 0
-                duration = 0.25;
-            }
-            double velocity = noteStep.velocity() * 127;
-            if (velocity == 0) {
-                // TODO: this is an API bug. velocity() returns 0
-                velocity = 100;
-            }
-            cursorClip.setStep(noteStep.x(), 0, (int) velocity, duration);
-
-            if (copyParams) {
-                parent.registerExpectedNoteChange(noteStep.x(), noteStep);
-            }
-        }
+    /**
+     * Replaces the notes of the pad now on display with the pattern.
+     *
+     * @param pattern    the notes with their values as they were read on the source pad. (Notes read
+     *                   after the display has moved to another pad report 0 for length and velocity.)
+     * @param copyParams false to copy only position, velocity and length
+     */
+    void executeCopy(final List<StepData> pattern, final boolean copyParams) {
+        parent.clearPattern();
+        // give Bitwig's reports about the target pad's old notes time to pass before the new notes
+        // are expected
+        parent.host.scheduleTask(() -> parent.writePattern(pattern, copyParams, () -> {
+        }), 100);
     }
 
     void executeClear(final int origIndex) {
@@ -208,8 +210,9 @@ public class PadHandler {
      */
     private void doNotesPadCopy(final PadContainer pad) {
         if (pad.index != selectedPadIndex) {
-            final List<NoteStep> notes = parent.getOnNotes();
-            parent.registerPendingAction(new NoteAction(selectedPadIndex, pad.index, Type.COPY_PAD, notes));
+            // read the values now: once the display has moved to the other pad it is too late
+            final List<StepData> pattern = parent.snapshotPattern();
+            parent.registerPendingAction(new NoteAction(selectedPadIndex, pad.index, Type.COPY_PAD, pattern));
             cursorClip.scrollToKey(Math.min(127, drumScrollOffset + pad.index));
             pad.pad.selectInEditor();
         }
@@ -275,6 +278,9 @@ public class PadHandler {
             drumScrollOffset = offset;
             focusOnSelectedPad();
             applyScale();
+            if (pageListener != null) {
+                pageListener.accept(offset);
+            }
         });
         for (int i = 0; i < 16; i++) {
             playing[i] = new BooleanValueObject();
@@ -385,6 +391,41 @@ public class PadHandler {
         final int min = fine ? 0 : LOWEST_FULL_PAGE;
         final int max = fine ? MAX_SCROLL_POSITION : HIGHEST_FULL_PAGE;
         return target >= min && target <= max ? target : -1;
+    }
+
+    public void setPageListener(final IntConsumer listener) {
+        pageListener = listener;
+    }
+
+    @Override
+    public int position() {
+        return drumScrollOffset;
+    }
+
+    @Override
+    public boolean scrollPage(final int dir) {
+        final int target = padBank.scrollPosition().get() + dir * 16;
+        if (target < LOWEST_FULL_PAGE || target > HIGHEST_FULL_PAGE) {
+            return false;
+        }
+        // as for the Fire's own page buttons: no "Selected Pad" screen for the pad moving along
+        padPageScrolledUntil = System.currentTimeMillis() + 500;
+        padBank.scrollPosition().set(target);
+        return true;
+    }
+
+    @Override
+    public void flash(final int firstKey, final int count) {
+        flashFirstKey = firstKey;
+        flashCount = count;
+        flashUntil = System.currentTimeMillis() + FLASH_MS;
+    }
+
+    /** @return true while the pad at the given position should be shown white as part of a flash */
+    boolean isFlashLit(final int padIndex) {
+        final int key = drumScrollOffset + padIndex;
+        return System.currentTimeMillis() < flashUntil && key >= flashFirstKey && key < flashFirstKey + flashCount
+                && !parent.isSourceBlinkDark();
     }
 
     /** Lit if the pads that page up would bring in include at least one with a device on it. */

@@ -7,15 +7,15 @@ import com.bitwig.extension.controller.api.ControllerHost;
 
 import java.util.UUID;
 
-public class AkaiFireDrumSeqDefinition extends ControllerExtensionDefinition {
+public class DrumSequencerDefinition extends ControllerExtensionDefinition {
     private static final UUID DRIVER_ID = UUID.fromString("24d0db9d-1951-406f-bdcf-d42c32d3d394");
 
-    public AkaiFireDrumSeqDefinition() {
+    public DrumSequencerDefinition() {
     }
 
     @Override
     public String getName() {
-        return "Akai Fire Drum Sequencer";
+        return "Drum Sequencer";
     }
 
     @Override
@@ -40,7 +40,7 @@ public class AkaiFireDrumSeqDefinition extends ControllerExtensionDefinition {
 
     @Override
     public String getHardwareModel() {
-        return "Fire";
+        return "Fire + MIDIMix";
     }
 
     @Override
@@ -60,28 +60,24 @@ public class AkaiFireDrumSeqDefinition extends ControllerExtensionDefinition {
 
     @Override
     public int getNumMidiInPorts() {
-        return 1;
+        // port 0: Akai Fire, port 1: Akai MIDI Mix
+        return 2;
     }
 
     @Override
     public int getNumMidiOutPorts() {
-        return 1;
+        return 2;
     }
 
     @Override
     public void listAutoDetectionMidiPortNames(final AutoDetectionMidiPortNamesList list,
                                                final PlatformType platformType) {
-        if (platformType == PlatformType.WINDOWS) {
-            list.add(new String[]{"FL STUDIO FIRE"}, new String[]{"FL STUDIO FIRE"});
-        } else if (platformType == PlatformType.MAC) {
-            list.add(new String[]{"FL STUDIO FIRE"}, new String[]{"FL STUDIO FIRE"});
-        } else if (platformType == PlatformType.LINUX) {
-            list.add(new String[]{"FL STUDIO FIRE"}, new String[]{"FL STUDIO FIRE"});
-        }
+        final String midiMix = platformType == PlatformType.LINUX ? "MIDI Mix MIDI 1" : "MIDI Mix";
+        list.add(new String[]{"FL STUDIO FIRE", midiMix}, new String[]{"FL STUDIO FIRE", midiMix});
     }
 
     @Override
-    public AkaiFireDrumSeqExtension createInstance(final ControllerHost host) {
-        return new AkaiFireDrumSeqExtension(this, host);
+    public DrumSequencerExtension createInstance(final ControllerHost host) {
+        return new DrumSequencerExtension(this, host);
     }
 }

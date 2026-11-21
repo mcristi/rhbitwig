@@ -76,7 +76,7 @@
                             <sourceFile>${project.build.directory}/${project.build.finalName}.jar
                             </sourceFile>
                             <destinationFile>
-								${bitwig.extension.directory}/rhbitwig.bwextension
+								${bitwig.extension.directory}/DrumSequencer.bwextension
                             </destinationFile>
                         </configuration>
                     </execution>

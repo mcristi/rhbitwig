@@ -2,7 +2,7 @@ package com.akai.fire.sequence;
 
 import java.util.List;
 
-import com.akai.fire.AkaiFireDrumSeqExtension;
+import com.akai.fire.DrumSequencerExtension;
 import com.akai.fire.control.RgbButton;
 import com.akai.fire.lights.RgbLigthState;
 import com.bitwig.extension.controller.api.NoteStep;
@@ -20,7 +20,7 @@ public class RecurrenceEditor {
 	// cycles of the pattern that are switched off: white enough to stand out from unused pads
 	private static final RgbLigthState CYCLE_OFF = new RgbLigthState(55, 55, 55, true);
 
-	public RecurrenceEditor(final AkaiFireDrumSeqExtension driver, final DrumSequenceMode parent) {
+	public RecurrenceEditor(final DrumSequencerExtension driver, final DrumSequenceMode parent) {
 		this.parent = parent;
 		layer = new Layer(driver.getLayers(), parent.getName() + "_RECURRENCE");
 		initClipControlButtons(layer, driver);
@@ -34,7 +34,7 @@ public class RecurrenceEditor {
 		}
 	}
 
-	private void initClipControlButtons(final Layer clipLayer, final AkaiFireDrumSeqExtension driver) {
+	private void initClipControlButtons(final Layer clipLayer, final DrumSequencerExtension driver) {
 		final RgbButton[] rgbButtons = driver.getRgbButtons();
 		for (int i = 0; i < 16; i++) {
 			final RgbButton button = rgbButtons[i + 16];
