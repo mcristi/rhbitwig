@@ -40,6 +40,13 @@
 - Whatever is moved on the MIDI Mix is shown on the Fire's display: pad, parameter, value and a bar; the pair of sends after a switch; and the key range of the 8 pads after a bank change
 - The stand-alone MIDI Mix extension has to be switched off in Bitwig when this one is used
 
+### Akai LPD8 mk2
+- The extension also listens to an Akai LPD8 mk2 (third MIDI input / output of the controller)
+- Pads in note mode: the notes go to Bitwig as they are
+- Pads in CC mode (CC 71 - 78): they play the 8 drum pads the MIDI Mix is on, with the value the pad sends as velocity. With the drum track armed the hits arrive as played notes and can be recorded; with it not armed they are played on the track directly, so they are heard anyway (but not recorded)
+- Knobs: mapped by hand in Bitwig
+- The stand-alone LPD8 extension has to be switched off in Bitwig when this one is used
+
 ### Select mode
 - Select + Pad: select the relevant instrument device in the currently selected drum chain for the given pad
 

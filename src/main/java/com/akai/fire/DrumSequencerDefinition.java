@@ -40,7 +40,7 @@ public class DrumSequencerDefinition extends ControllerExtensionDefinition {
 
     @Override
     public String getHardwareModel() {
-        return "Fire + MIDIMix";
+        return "Fire + MIDIMix + LPD8";
     }
 
     @Override
@@ -60,20 +60,25 @@ public class DrumSequencerDefinition extends ControllerExtensionDefinition {
 
     @Override
     public int getNumMidiInPorts() {
-        // port 0: Akai Fire, port 1: Akai MIDI Mix
-        return 2;
+        // port 0: Akai Fire, port 1: Akai MIDI Mix, port 2: Akai LPD8 mk2
+        return 3;
     }
 
     @Override
     public int getNumMidiOutPorts() {
-        return 2;
+        // same order as the inputs. Nothing is sent to the LPD8, its output is there to keep the
+        // inputs and outputs paired in Bitwig's controller settings.
+        return 3;
     }
 
     @Override
     public void listAutoDetectionMidiPortNames(final AutoDetectionMidiPortNamesList list,
                                                final PlatformType platformType) {
         final String midiMix = platformType == PlatformType.LINUX ? "MIDI Mix MIDI 1" : "MIDI Mix";
-        list.add(new String[]{"FL STUDIO FIRE", midiMix}, new String[]{"FL STUDIO FIRE", midiMix});
+        // macOS names the Fire's port with its jack
+        final String fire = platformType == PlatformType.MAC ? "FL STUDIO FIRE Jack 1" : "FL STUDIO FIRE";
+        final String[] ports = {fire, midiMix, "LPD8 mk2"};
+        list.add(ports, ports);
     }
 
     @Override

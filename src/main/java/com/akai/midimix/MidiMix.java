@@ -286,6 +286,11 @@ public class MidiMix {
         }
     }
 
+    /** @return the key of the first of the 8 drum pads the channels are on */
+    public int getPosition() {
+        return scrollPosition;
+    }
+
     /** Ties the 8 channels to the Fire's 16 pads, see the class description. */
     public void linkTo(final FirePads firePads) {
         fire = firePads;

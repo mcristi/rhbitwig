@@ -7,6 +7,7 @@ import com.akai.fire.display.OledDisplay;
 import com.akai.fire.lights.BiColorLightState;
 import com.akai.fire.lights.RgbLigthState;
 import com.akai.fire.sequence.DrumSequenceMode;
+import com.akai.lpd8.Lpd8;
 import com.akai.midimix.MidiMix;
 import com.bitwig.extension.api.util.midi.ShortMidiMessage;
 import com.bitwig.extension.callback.ShortMidiMessageReceivedCallback;
@@ -48,6 +49,7 @@ public class DrumSequencerExtension extends ControllerExtension {
     private NoteInput noteInput;
     private DrumSequenceMode drumSequenceMode;
     private MidiMix midiMix;
+    private Lpd8 lpd8;
     private ViewCursorControl viewControl;
 
     private OledDisplay oled;
@@ -88,6 +90,8 @@ public class DrumSequencerExtension extends ControllerExtension {
         // the 8 pads of the MIDI Mix are one half of the 16 pads on the Fire
         midiMix.linkTo(drumSequenceMode.getPadHandler());
         drumSequenceMode.getPadHandler().setPageListener(midiMix::firePageChanged);
+        // third input: the LPD8, whose pads in CC mode play the 8 pads the MIDI Mix is on
+        lpd8 = new Lpd8(host.getMidiInPort(2), viewControl.getCursorTrack(), midiMix::getPosition);
         midiOut.sendSysex(DEV_INQ);
 
         oled.showLogo();
@@ -284,6 +288,7 @@ public class DrumSequencerExtension extends ControllerExtension {
     @Override
     public void exit() {
         midiMix.exit();
+        lpd8.exit();
         // The Fire keeps its last LED, pad and OLED state, so switch everything off.
         for (final NoteAssign assign : NoteAssign.values()) {
             if (assign != NoteAssign.KNOB_MODE_LIGHT && assign != NoteAssign.ENCODER_PRESS) {
