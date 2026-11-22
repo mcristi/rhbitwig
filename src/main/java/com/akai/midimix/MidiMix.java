@@ -137,12 +137,9 @@ public class MidiMix {
             for (int col = 0; col < NUM_CHANNELS; col++) {
                 final AbsoluteHardwareKnob knob = surface.createAbsoluteHardwareKnob("MIDIMIX_KNOB_" + row + "_" + col);
                 knob.setAdjustValueMatcher(midiIn.createAbsoluteCCValueMatcher(0, CC_KNOBS[row][col]));
-                if (row == 0) {
-                    knob.disableTakeOver();
-                }
-                // Rows 2 and 3 change what they control (the pair of sends, and the pad when the
-                // bank moves), so they keep Bitwig's takeover: the knob only takes hold once it
-                // has reached the send's value, instead of making it jump.
+                // The knobs change what they control (the pad when the bank moves, the pair of
+                // sends), so they keep Bitwig's takeover: a knob only takes hold once it has
+                // reached the parameter's value, instead of making it jump.
                 hwKnobs[row][col] = knob;
                 // Bitwig keeps the messages of a bound knob to itself, they never reach onMidi:
                 // the knob's own value is what tells that it was turned

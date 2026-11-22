@@ -336,8 +336,15 @@ public class DrumSequenceMode extends Layer {
         if (index < steps) {
             final State state = assignments[index] == null ? State.Empty : assignments[index].state();
 
-            if (isShiftHeld()) {
-                // operator view: only what has an operator stands out, no playhead, no blinking
+            // Shift alone, not as part of a combination like Shift + Last Step
+            if (isShiftHeld() && !fixedLengthHeld.get() && !copyHeld.get() && !deleteHeld.get()
+                    && !selectHeld.get()) {
+                // operator view: every note in the color of its operators, no blinking. The
+                // playhead is in the pad's color: the normal view reversed, where the notes have
+                // the pad's color and the playhead is white.
+                if (index == playingStep) {
+                    return padHandler.getCurrentPadColor();
+                }
                 return state == State.NoteOn ? operatorState(assignments[index]) : RgbLigthState.OFF;
             }
 
@@ -374,11 +381,11 @@ public class DrumSequenceMode extends Layer {
 
     /**
      * The step in the operator view (Shift held): the color of its operator, in the colors of the
-     * encoders that edit them: orange = chance, yellow = repeats, green = recurrence, red = an "if"
-     * condition (e.g. Fill on), white = more than one. A note without operators is dim grey.
+     * encoders that edit them: orange = chance, yellow = repeats, green = recurrence, blue = an "if"
+     * condition (e.g. Fill on), red = more than one. A note without operators is white.
      */
     private RgbLigthState operatorState(final NoteStep note) {
-        RgbLigthState color = RgbLigthState.GRAY_1;
+        RgbLigthState color = RgbLigthState.BRIGHT_WHITE;
         int operators = 0;
         if (note.isChanceEnabled() && note.chance() < 0.999) {
             color = RgbLigthState.ORANGE;
@@ -393,10 +400,10 @@ public class DrumSequenceMode extends Layer {
             operators++;
         }
         if (note.occurrence() != NoteOccurrence.ALWAYS) {
-            color = RgbLigthState.RED;
+            color = RgbLigthState.BLUE;
             operators++;
         }
-        return operators > 1 ? RgbLigthState.WHITE : color;
+        return operators > 1 ? RgbLigthState.RED : color;
     }
 
     private RgbLigthState emptyNoteState(final int index) {

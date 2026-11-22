@@ -19,7 +19,7 @@
 - Pin track instead of pin clip
 - Start: continue play instead of start
 - Shift + Select mode: toggle normal / alternative mode
-- While Shift is held the step pads show which steps have operators: orange = chance, yellow = repeats, green = recurrence, red = an "if" condition (e.g. Fill on), white = more than one; notes without operators are dim grey
+- While Shift alone is held (not with Select, Copy, Delete or Last Step) the step pads show which steps have operators: orange = chance, yellow = repeats, green = recurrence, blue = an "if" condition (e.g. Fill on), red = more than one; notes without operators are white, the playhead has the pad's color
 - Shift + Grid left / right: previous / next page of 32 steps, for clips longer than 32 steps (Grid left / right alone moves the notes of the visible page)
 - Holding steps and touching an encoder or pressing the mode button keeps the steps on release
 
@@ -32,7 +32,7 @@
   - Velocity (red): 16 pads, 8 per pad, pad 16 = 127
   - Chance (orange): 16 pads, pad 4 = 25%, pad 8 = 50%, pad 16 = 100%
   - Repeats (yellow): as many pads as repeats, the first pad switches them off
-  - Recurrence (green): pattern editor as before. The last pad of the row switches the step between Fill on (red) and Always (grey)
+  - Recurrence (green): pattern editor as before. The last pad of the row switches the step between Fill on (blue) and Always (grey)
 - Modes will reflect step or pad mode and cycle accordingly
 
 ### Akai MIDI Mix

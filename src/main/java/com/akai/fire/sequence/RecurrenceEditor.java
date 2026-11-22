@@ -14,7 +14,7 @@ import com.bitwig.extensions.framework.Layer;
  * are released and always shows the step pressed last, so holding another step switches to its
  * pattern. A pad press changes the pattern of all held steps.
  * <p>
- * The last pad of the row switches the step's "if" condition between Fill on (red: the step only
+ * The last pad of the row switches the step's "if" condition between Fill on (blue: the step only
  * plays while Bitwig's fill mode is on) and Always (grey).
  */
 public class RecurrenceEditor {
@@ -56,7 +56,7 @@ public class RecurrenceEditor {
 			return RgbLigthState.OFF;
 		}
 		if (index == FILL_PAD) {
-			return note.occurrence() == NoteOccurrence.FILL ? RgbLigthState.RED : RgbLigthState.GRAY_2;
+			return note.occurrence() == NoteOccurrence.FILL ? RgbLigthState.BLUE : RgbLigthState.GRAY_2;
 		}
 		final int length = note.recurrenceLength();
 		if (index < length && length > 1) {

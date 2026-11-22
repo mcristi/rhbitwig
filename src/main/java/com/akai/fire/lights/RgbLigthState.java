@@ -21,7 +21,12 @@ public class RgbLigthState extends InternalHardwareLightState {
 	public static final RgbLigthState ORANGE = new RgbLigthState(127, 30, 0, true);
 	public static final RgbLigthState YELLOW = new RgbLigthState(127, 100, 0, true);
 	public static final RgbLigthState GREEN = new RgbLigthState(0, 127, 0, true);
+	// the "if" condition of a step (Fill on, ..)
+	// the azure of Bitwig's 6th remote control; pure blue looks purple on the pads
+	public static final RgbLigthState BLUE = new RgbLigthState(0, 45, 110, true);
 	public static final RgbLigthState WHITE = new RgbLigthState(100, 100, 100, true);
+	// as bright as the pads go
+	public static final RgbLigthState BRIGHT_WHITE = new RgbLigthState(127, 127, 127, true);
 	public static final RgbLigthState GRAY_1 = new RgbLigthState(10, 10, 10, true);
 	public static final RgbLigthState GRAY_2 = new RgbLigthState(40, 40, 40, true);
 
