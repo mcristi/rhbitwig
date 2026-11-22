@@ -13,6 +13,7 @@ import com.akai.fire.lights.RgbLigthState;
 import com.bitwig.extension.controller.api.CursorTrack;
 import com.bitwig.extension.controller.api.DrumPadBank;
 import com.bitwig.extension.controller.api.MultiStateHardwareLight;
+import com.bitwig.extension.controller.api.NoteOccurrence;
 import com.bitwig.extension.controller.api.NoteStep;
 import com.bitwig.extension.controller.api.NoteStep.State;
 import com.bitwig.extension.controller.api.PinnableCursorClip;
@@ -200,7 +201,7 @@ public class DrumSequenceMode extends Layer {
         shiftButton.bindPressed(mainLayer, pressed -> {
             if (pressed) {
                 shiftActive.set(true);
-                oled.detailInfo("Shift", "+ pad: toggle colors\n+ mode: alt mode\n+ select: grid size\n+ knob: fine adjust\n+ mute/solo: pin\n+ grid </>: step page");
+                oled.detailInfo("Shift", "+ pad: toggle colors\n+ mode: alt mode\n+ select: grid size\n+ knob: fine adjust\n+ mute/solo: pin\n+ grid </>: step page\nsteps show operators");
             } else {
                 shiftActive.set(false);
                 oled.clearScreenDelayed();
@@ -335,6 +336,11 @@ public class DrumSequenceMode extends Layer {
         if (index < steps) {
             final State state = assignments[index] == null ? State.Empty : assignments[index].state();
 
+            if (isShiftHeld()) {
+                // operator view: only what has an operator stands out, no playhead, no blinking
+                return state == State.NoteOn ? operatorState(assignments[index]) : RgbLigthState.OFF;
+            }
+
             if (state == State.Empty) {
                 return emptyNoteState(index);
             } else if (state == State.NoteSustain) {
@@ -364,6 +370,33 @@ public class DrumSequenceMode extends Layer {
 
         }
         return RgbLigthState.OFF;
+    }
+
+    /**
+     * The step in the operator view (Shift held): the color of its operator, in the colors of the
+     * encoders that edit them: orange = chance, yellow = repeats, green = recurrence, red = an "if"
+     * condition (e.g. Fill on), white = more than one. A note without operators is dim grey.
+     */
+    private RgbLigthState operatorState(final NoteStep note) {
+        RgbLigthState color = RgbLigthState.GRAY_1;
+        int operators = 0;
+        if (note.isChanceEnabled() && note.chance() < 0.999) {
+            color = RgbLigthState.ORANGE;
+            operators++;
+        }
+        if (note.repeatCount() != 0) {
+            color = RgbLigthState.YELLOW;
+            operators++;
+        }
+        if (note.recurrenceLength() > 1) {
+            color = RgbLigthState.GREEN;
+            operators++;
+        }
+        if (note.occurrence() != NoteOccurrence.ALWAYS) {
+            color = RgbLigthState.RED;
+            operators++;
+        }
+        return operators > 1 ? RgbLigthState.WHITE : color;
     }
 
     private RgbLigthState emptyNoteState(final int index) {

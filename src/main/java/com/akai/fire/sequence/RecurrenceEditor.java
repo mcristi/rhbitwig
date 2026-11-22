@@ -5,6 +5,7 @@ import java.util.List;
 import com.akai.fire.DrumSequencerExtension;
 import com.akai.fire.control.RgbButton;
 import com.akai.fire.lights.RgbLigthState;
+import com.bitwig.extension.controller.api.NoteOccurrence;
 import com.bitwig.extension.controller.api.NoteStep;
 import com.bitwig.extensions.framework.Layer;
 
@@ -12,6 +13,9 @@ import com.bitwig.extensions.framework.Layer;
  * Shows and edits the recurrence pattern on the second pad row. Once opened it stays until all steps
  * are released and always shows the step pressed last, so holding another step switches to its
  * pattern. A pad press changes the pattern of all held steps.
+ * <p>
+ * The last pad of the row switches the step's "if" condition between Fill on (red: the step only
+ * plays while Bitwig's fill mode is on) and Always (grey).
  */
 public class RecurrenceEditor {
 	private final DrumSequenceMode parent;
@@ -19,6 +23,8 @@ public class RecurrenceEditor {
 	private boolean pendingRelease;
 	// cycles of the pattern that are switched off: white enough to stand out from unused pads
 	private static final RgbLigthState CYCLE_OFF = new RgbLigthState(55, 55, 55, true);
+	// the pad that switches Fill on / Always
+	private static final int FILL_PAD = 15;
 
 	public RecurrenceEditor(final DrumSequencerExtension driver, final DrumSequenceMode parent) {
 		this.parent = parent;
@@ -49,6 +55,9 @@ public class RecurrenceEditor {
 		if (note == null) {
 			return RgbLigthState.OFF;
 		}
+		if (index == FILL_PAD) {
+			return note.occurrence() == NoteOccurrence.FILL ? RgbLigthState.RED : RgbLigthState.GRAY_2;
+		}
 		final int length = note.recurrenceLength();
 		if (index < length && length > 1) {
 			if ((mask & note.recurrenceMask()) != 0) {
@@ -61,6 +70,17 @@ public class RecurrenceEditor {
 
 	private void handleMask(final boolean pressed, final int index, final int mask) {
 		final NoteStep focus = parent.getFocusNote();
+		if (pressed && focus != null && index == FILL_PAD) {
+			// what the pad shows, toggled, goes to all held steps
+			final NoteOccurrence occurrence = focus.occurrence() == NoteOccurrence.FILL ? NoteOccurrence.ALWAYS
+					: NoteOccurrence.FILL;
+			for (final NoteStep note : parent.getHeldNotes()) {
+				note.setOccurrence(occurrence);
+			}
+			parent.getOled().paramInfo("IF:", occurrence == NoteOccurrence.FILL ? "Fill on" : "Always",
+					parent.getDetails(parent.getHeldNotes()));
+			return;
+		}
 		if (!pressed || focus == null || index >= focus.recurrenceLength()) {
 			return;
 		}

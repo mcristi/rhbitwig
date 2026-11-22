@@ -19,6 +19,7 @@
 - Pin track instead of pin clip
 - Start: continue play instead of start
 - Shift + Select mode: toggle normal / alternative mode
+- While Shift is held the step pads show which steps have operators: orange = chance, yellow = repeats, green = recurrence, red = an "if" condition (e.g. Fill on), white = more than one; notes without operators are dim grey
 - Shift + Grid left / right: previous / next page of 32 steps, for clips longer than 32 steps (Grid left / right alone moves the notes of the visible page)
 - Holding steps and touching an encoder or pressing the mode button keeps the steps on release
 
@@ -31,11 +32,11 @@
   - Velocity (red): 16 pads, 8 per pad, pad 16 = 127
   - Chance (orange): 16 pads, pad 4 = 25%, pad 8 = 50%, pad 16 = 100%
   - Repeats (yellow): as many pads as repeats, the first pad switches them off
-  - Recurrence (green): pattern editor as before
+  - Recurrence (green): pattern editor as before. The last pad of the row switches the step between Fill on (red) and Always (grey)
 - Modes will reflect step or pad mode and cycle accordingly
 
 ### Akai MIDI Mix
-- The extension now also drives an Akai MIDI Mix (second MIDI in / out port of the controller) as a mixer for 8 pads of the Drum Machine: faders = pad volume, master fader = track volume, knob row 1 = 2nd remote control of the pad's first device, knob rows 2 and 3 = two sends of the pad, mute buttons = switch the pad on that channel between sends 1-2 (LED off) and sends 3-4 (LED on) for rows 2 and 3, remembered per pad, solo = not used, rec arm = remote controls page 2 of the track's last device, bank left / right = next / previous 8 pads
+- The extension now also drives an Akai MIDI Mix (second MIDI in / out port of the controller) as a mixer for 8 pads of the Drum Machine: faders = pad volume, master fader = track volume, knob row 1 = 2nd remote control of the pad's first device, knob rows 2 and 3 = two sends of the pad, mute buttons = switch the pad on that channel between sends 1-2 (LED off) and sends 3-4 (LED on) for rows 2 and 3, remembered per pad, solo = Bitwig's fill mode while held (steps with a fill occurrence play), rec arm = remote controls page 2 of the track's last device, bank left / right = next / previous 8 pads
 - The 8 pads of the MIDI Mix always are the left or the right half of the 16 pads on the Fire. Its bank buttons go from half to half and take the Fire's page along; the Fire's Pattern up / down take the MIDI Mix along. Each change flashes the 8 pads on the Fire white three times
 - Whatever is moved on the MIDI Mix is shown on the Fire's display: pad, parameter, value and a bar; the pair of sends after a switch; and the key range of the 8 pads after a bank change
 - The stand-alone MIDI Mix extension has to be switched off in Bitwig when this one is used

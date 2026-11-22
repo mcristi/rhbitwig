@@ -16,6 +16,7 @@ import com.bitwig.extension.controller.api.MidiOut;
 import com.bitwig.extension.controller.api.Parameter;
 import com.bitwig.extension.controller.api.PinnableCursorDevice;
 import com.bitwig.extension.controller.api.Send;
+import com.bitwig.extension.controller.api.SettableBooleanValue;
 import com.bitwig.extensions.framework.values.Midi;
 
 /**
@@ -26,7 +27,7 @@ import com.bitwig.extensions.framework.values.Midi;
  * <li>Knob row 1: 2nd remote control of the pad's first device. Rows 2 and 3: two sends of the
  * pad, 1 and 2 or 3 and 4.</li>
  * <li>Mute buttons: switch the pad on that channel between sends 1-2 (LED off) and sends 3-4 (LED
- * on) for rows 2 and 3; each pad remembers its own. Solo: not used. Rec arm: remote controls page 2 of the track's last device. Bank left /
+ * on) for rows 2 and 3; each pad remembers its own. Solo: fill mode while held. Rec arm: remote controls page 2 of the track's last device. Bank left /
  * right: next / previous 8 pads.</li>
  * </ul>
  * The 8 pads always are the left or the right half of the 16 pads on the Fire: the bank buttons go
@@ -111,6 +112,7 @@ public class MidiMix {
     private boolean redrawPending = false;
     // the values Bitwig reports for the knobs while starting up are not the user turning them
     private boolean started = false;
+    private SettableBooleanValue fillMode;
     private FirePads fire;
     // which 8 of the Fire's 16 pads: 0 = the first (left) half, 1 = the second
     private int half = 0;
@@ -226,7 +228,9 @@ public class MidiMix {
             hwKnobs[0][i].setBinding(chainRemoteControls[i].getParameter(1));
             updateSendBinding(i);
         }
-        sendLed(NOTE_SOLO, OFF);
+        // the Solo button's LED shows the fill mode, also when it is switched in Bitwig
+        fillMode = host.createTransport().isFillModeActive();
+        fillMode.addValueObserver(active -> sendLed(NOTE_SOLO, active ? ON : OFF));
     }
 
     private void onMidi(final int status, final int data1, final int data2) {
@@ -234,8 +238,24 @@ public class MidiMix {
 
         if (type == Midi.CC) {
             handleCC(data1, data2);
-        } else if (type == Midi.NOTE_ON) {
-            handleNoteOn(data1);
+        } else if (type == Midi.NOTE_ON && data2 > 0) {
+            if (data1 == NOTE_SOLO) {
+                setFill(true);
+            } else {
+                handleNoteOn(data1);
+            }
+        } else if ((type == Midi.NOTE_OFF || type == Midi.NOTE_ON) && data1 == NOTE_SOLO) {
+            setFill(false);
+        }
+    }
+
+    /** The Solo button: Bitwig's fill mode for as long as it is held (steps with a fill occurrence play). */
+    private void setFill(final boolean active) {
+        fillMode.set(active);
+        if (active) {
+            showMessage(cursorTrack.name().get(), "Fill", "On");
+        } else {
+            oled.clearScreenDelayed();
         }
     }
 
