@@ -40,6 +40,9 @@ public class PadHandler implements MidiMix.FirePads {
     private int drumScrollOffset;
     // told when the pad page changes (the MIDI Mix, which is tied to it)
     private IntConsumer pageListener;
+    // told the key of a pad whose device got selected with Select + pad, or that was newly set up
+    // (the MIDI Mix goes there)
+    private IntConsumer deviceSelectListener;
     // keys whose pads flash, to show what the MIDI Mix covers: white and back, this many times
     private static final int FLASH_COUNT = 3;
     private static final long FLASH_PHASE_MS = 200;
@@ -162,6 +165,10 @@ public class PadHandler implements MidiMix.FirePads {
                 // an empty pad of a Drum Machine gets a Komplete Kontrol to build on
                 if (!pad.exists() && drumDevice.hasDrumPads().get()) {
                     pad.setUpEmptyPad(drumScrollOffset + pad.index);
+                    // the new pad is the one to work on: have it on the MIDI Mix too
+                    if (deviceSelectListener != null) {
+                        deviceSelectListener.accept(drumScrollOffset + pad.index);
+                    }
                 }
                 pad.pad.selectInEditor();
 
@@ -179,6 +186,9 @@ public class PadHandler implements MidiMix.FirePads {
     private void selectTrackAndPadInstrument(final PadContainer pad) {
         cursorClip.getTrack().selectInEditor();
         pad.selectRelevantDevice();
+        if (deviceSelectListener != null) {
+            deviceSelectListener.accept(drumScrollOffset + pad.index);
+        }
     }
 
     /**
@@ -396,6 +406,10 @@ public class PadHandler implements MidiMix.FirePads {
 
     public void setPageListener(final IntConsumer listener) {
         pageListener = listener;
+    }
+
+    public void setDeviceSelectListener(final IntConsumer listener) {
+        deviceSelectListener = listener;
     }
 
     @Override

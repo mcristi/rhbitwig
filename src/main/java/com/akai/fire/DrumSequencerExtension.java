@@ -90,6 +90,7 @@ public class DrumSequencerExtension extends ControllerExtension {
         // the 8 pads of the MIDI Mix are one half of the 16 pads on the Fire
         midiMix.linkTo(drumSequenceMode.getPadHandler());
         drumSequenceMode.getPadHandler().setPageListener(midiMix::firePageChanged);
+        drumSequenceMode.getPadHandler().setDeviceSelectListener(midiMix::showPad);
         // third input: the LPD8, whose pads in CC mode play the 8 pads the MIDI Mix is on
         lpd8 = new Lpd8(host.getMidiInPort(2), viewControl.getCursorTrack(), midiMix::getPosition);
         midiOut.sendSysex(DEV_INQ);
