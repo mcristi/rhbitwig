@@ -16,7 +16,6 @@ import com.bitwig.extension.controller.api.MidiOut;
 import com.bitwig.extension.controller.api.Parameter;
 import com.bitwig.extension.controller.api.PinnableCursorDevice;
 import com.bitwig.extension.controller.api.Send;
-import com.bitwig.extension.controller.api.SettableBooleanValue;
 import com.bitwig.extensions.framework.values.Midi;
 
 /**
@@ -24,11 +23,12 @@ import com.bitwig.extensions.framework.values.Midi;
  * Fire so that the Fire's display can show what the MIDI Mix is changing.
  * <ul>
  * <li>Faders: pad volume. Master fader: track volume.</li>
- * <li>Knob row 1: 2nd remote control of the pad's first device. Rows 2 and 3: two sends of the
- * pad, 1 and 2 or 3 and 4.</li>
- * <li>Mute buttons: switch the pad on that channel between sends 1-2 (LED off) and sends 3-4 (LED
- * on) for rows 2 and 3; each pad remembers its own. Solo: fill mode while held. Rec arm: remote controls page 2 of the track's last device. Bank left /
- * right: next / previous 8 pads.</li>
+ * <li>The three knobs of a channel, top to bottom, in one of three layouts: hybrid = 2nd remote
+ * control of the pad's first device, send 1, send 2; parameters = 1st, 2nd, 3rd remote control;
+ * sends = send 1, 2, 3.</li>
+ * <li>Mute button: parameters layout for the pad on that channel (LED on), again: back to hybrid.
+ * Rec arm button: the same for the sends layout. Each pad remembers its layout. Solo: all pads back
+ * to hybrid. Bank left / right: next / previous 8 pads.</li>
  * </ul>
  * The 8 pads always are the left or the right half of the 16 pads on the Fire: the bank buttons go
  * from half to half and take the Fire's page along, and the Fire's page buttons take the MIDI Mix
@@ -80,7 +80,21 @@ public class MidiMix {
 
     private static final int TOTAL_PADS = 128;
     private static final double VOLUME_0DB = 0.7937005259840997;
-    private static final int NUM_SENDS = 4;
+    private static final int NUM_SENDS = 3;
+    // the remote control of a pad's first device on the top knob in the hybrid layout (0 = the first)
+    private static final int HYBRID_CONTROL = 1;
+
+    /** What the three knobs of a channel are on. */
+    private enum KnobLayout {
+        HYBRID("Hybrid"), PARAMETERS("Parameters"), SENDS("Sends");
+
+        private final String title;
+
+        KnobLayout(final String title) {
+            this.title = title;
+        }
+    }
+
     private static final String[] KEY_NAMES = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 
     // The display follows a control for this long after its last movement, and is redrawn at most
@@ -94,15 +108,13 @@ public class MidiMix {
     private final CursorTrack cursorTrack;
     private final DrumPadBank drumPadBank;
     private boolean hasDrumPads = false;
-    // per pad (by key): false = knob rows 2 and 3 are sends 1 and 2, true = sends 3 and 4
-    private final boolean[] secondSendPair = new boolean[TOTAL_PADS];
     private final boolean[] padExists = new boolean[TOTAL_PADS];
+    // per pad (by key)
+    private final KnobLayout[] knobLayout = new KnobLayout[TOTAL_PADS];
     private int scrollPosition = 0;
     private final CursorRemoteControlsPage[] chainRemoteControls = new CursorRemoteControlsPage[NUM_CHANNELS];
     private final AbsoluteHardwareKnob[][] hwKnobs = new AbsoluteHardwareKnob[NUM_KNOB_ROWS][NUM_CHANNELS];
     private final Send[][] chainSends = new Send[NUM_SENDS][NUM_CHANNELS];
-    private final CursorRemoteControlsPage deviceButtonControls;
-    private final boolean[] buttonState = new boolean[NUM_CHANNELS];
 
     // what the display is following: the parameter moved last and where it belongs
     private Parameter shownParameter;
@@ -112,7 +124,6 @@ public class MidiMix {
     private boolean redrawPending = false;
     // the values Bitwig reports for the knobs while starting up are not the user turning them
     private boolean started = false;
-    private SettableBooleanValue fillMode;
     private FirePads fire;
     // which 8 of the Fire's 16 pads: 0 = the first (left) half, 1 = the second
     private int half = 0;
@@ -130,6 +141,7 @@ public class MidiMix {
         this.oled = oled;
         this.cursorTrack = cursorTrack;
 
+        java.util.Arrays.fill(knobLayout, KnobLayout.HYBRID);
         midiIn.setMidiCallback(this::onMidi);
         host.scheduleTask(() -> started = true, 1000);
 
@@ -161,24 +173,6 @@ public class MidiMix {
 
         cursorDevice.hasDrumPads().addValueObserver(hasPads -> hasDrumPads = hasPads);
 
-        final PinnableCursorDevice lastDevice = cursorTrack.createCursorDevice("midi-mix-buttons", "Button Device",
-                0, CursorDeviceFollowMode.LAST_DEVICE);
-        lastDevice.name().markInterested();
-        deviceButtonControls = lastDevice.createCursorRemoteControlsPage("Buttons", NUM_CHANNELS, "");
-        deviceButtonControls.pageCount().addValueObserver(count -> {
-            if (count > 1) {
-                deviceButtonControls.selectedPageIndex().set(1);
-            }
-        });
-        for (int i = 0; i < NUM_CHANNELS; i++) {
-            watch(deviceButtonControls.getParameter(i));
-            final int bi = i;
-            deviceButtonControls.getParameter(i).value().addValueObserver(value -> {
-                buttonState[bi] = value > 0.5;
-                sendLed(NOTE_REC_ARM[bi], buttonState[bi] ? ON : OFF);
-            });
-        }
-
         final DrumPadBank monitorBank = cursorDevice.createDrumPadBank(TOTAL_PADS);
         monitorBank.setIndication(false);
         for (int i = 0; i < TOTAL_PADS; i++) {
@@ -194,7 +188,7 @@ public class MidiMix {
             updateBankLeds();
             // other pads: each has its own pair of sends
             for (int i = 0; i < NUM_CHANNELS; i++) {
-                updateSendBinding(i);
+                updateBindings(i);
             }
             if (started && fire != null) {
                 fire.flash(pos, NUM_CHANNELS);
@@ -220,14 +214,13 @@ public class MidiMix {
             final Device firstDevice = padDeviceBank.getDevice(0);
             chainRemoteControls[i] = firstDevice.createCursorRemoteControlsPage("Knobs", NUM_KNOB_ROWS, "");
             chainRemoteControls[i].selectedPageIndex().set(0);
-            watch(chainRemoteControls[i].getParameter(1));
+            for (int row = 0; row < NUM_KNOB_ROWS; row++) {
+                watch(chainRemoteControls[i].getParameter(row));
+            }
 
-            hwKnobs[0][i].setBinding(chainRemoteControls[i].getParameter(1));
-            updateSendBinding(i);
+            updateBindings(i);
         }
-        // the Solo button's LED shows the fill mode, also when it is switched in Bitwig
-        fillMode = host.createTransport().isFillModeActive();
-        fillMode.addValueObserver(active -> sendLed(NOTE_SOLO, active ? ON : OFF));
+        sendLed(NOTE_SOLO, OFF);
     }
 
     private void onMidi(final int status, final int data1, final int data2) {
@@ -236,23 +229,7 @@ public class MidiMix {
         if (type == Midi.CC) {
             handleCC(data1, data2);
         } else if (type == Midi.NOTE_ON && data2 > 0) {
-            if (data1 == NOTE_SOLO) {
-                setFill(true);
-            } else {
-                handleNoteOn(data1);
-            }
-        } else if ((type == Midi.NOTE_OFF || type == Midi.NOTE_ON) && data1 == NOTE_SOLO) {
-            setFill(false);
-        }
-    }
-
-    /** The Solo button: Bitwig's fill mode for as long as it is held (steps with a fill occurrence play). */
-    private void setFill(final boolean active) {
-        fillMode.set(active);
-        if (active) {
-            showMessage(cursorTrack.name().get(), "Fill", "On");
-        } else {
-            oled.clearScreenDelayed();
+            handleNoteOn(data1);
         }
     }
 
@@ -279,19 +256,21 @@ public class MidiMix {
     private void handleNoteOn(final int note) {
         for (int i = 0; i < NUM_CHANNELS; i++) {
             if (note == NOTE_MUTE[i] || note == NOTE_SOLO_MUTE[i]) {
-                toggleSendPair(i);
+                toggleLayout(i, KnobLayout.PARAMETERS);
                 return;
             }
         }
 
         for (int i = 0; i < NUM_CHANNELS; i++) {
             if (note == NOTE_REC_ARM[i]) {
-                final double target = buttonState[i] ? 0.0 : 1.0;
-                final Parameter parameter = deviceButtonControls.getParameter(i);
-                parameter.set(target);
-                follow(parameter, cursorTrack.name().get());
+                toggleLayout(i, KnobLayout.SENDS);
                 return;
             }
+        }
+
+        if (note == NOTE_SOLO) {
+            resetLayouts();
+            return;
         }
 
         if (note == NOTE_BANK_LEFT) {
@@ -340,13 +319,16 @@ public class MidiMix {
         }
     }
 
-    /** @return the parameter the knob is bound to, see updateSendBinding */
+    /** @return the parameter the knob is bound to, see updateBindings */
     private Parameter knobTarget(final int row, final int channel) {
-        if (row == 0) {
-            return chainRemoteControls[channel].getParameter(1);
+        switch (knobLayout[padKey(channel)]) {
+        case PARAMETERS:
+            return chainRemoteControls[channel].getParameter(row);
+        case SENDS:
+            return chainSends[row][channel];
+        default:
+            return row == 0 ? chainRemoteControls[channel].getParameter(HYBRID_CONTROL) : chainSends[row - 1][channel];
         }
-        // rows 2 and 3: first and second send of the channel's pair
-        return chainSends[(isSecondSendPair(channel) ? 2 : 0) + row - 1][channel];
     }
 
     /** @return the key of the pad on the channel */
@@ -354,25 +336,41 @@ public class MidiMix {
         return Math.min(TOTAL_PADS - 1, scrollPosition + channel);
     }
 
-    private boolean isSecondSendPair(final int channel) {
-        return secondSendPair[padKey(channel)];
+    /**
+     * Binds the three knobs of the channel according to the layout of the pad on it, and shows the
+     * layout on the buttons: mute LED = parameters, rec arm LED = sends, none = hybrid.
+     */
+    private void updateBindings(final int channel) {
+        for (int row = 0; row < NUM_KNOB_ROWS; row++) {
+            hwKnobs[row][channel].setBinding(knobTarget(row, channel));
+        }
+        final KnobLayout layout = knobLayout[padKey(channel)];
+        final int parametersLed = layout == KnobLayout.PARAMETERS ? ON : OFF;
+        sendLed(NOTE_MUTE[channel], parametersLed);
+        sendLed(NOTE_SOLO_MUTE[channel], parametersLed);
+        sendLed(NOTE_REC_ARM[channel], layout == KnobLayout.SENDS ? ON : OFF);
     }
 
-    /** Binds knob rows 2 and 3 of the channel to its current pair of sends and shows the pair on the LED. */
-    private void updateSendBinding(final int channel) {
-        hwKnobs[1][channel].setBinding(knobTarget(1, channel));
-        hwKnobs[2][channel].setBinding(knobTarget(2, channel));
-        final int led = isSecondSendPair(channel) ? ON : OFF;
-        sendLed(NOTE_MUTE[channel], led);
-        sendLed(NOTE_SOLO_MUTE[channel], led);
+    /** The pad on the channel goes to the layout, or back to hybrid if it already is on it. */
+    private void toggleLayout(final int channel, final KnobLayout layout) {
+        final int key = padKey(channel);
+        knobLayout[key] = knobLayout[key] == layout ? KnobLayout.HYBRID : layout;
+        updateBindings(channel);
+        // the three knobs top to bottom, as far as they fit on the display
+        final StringBuilder names = new StringBuilder();
+        for (int row = 0; row < NUM_KNOB_ROWS; row++) {
+            names.append(row == 0 ? "" : "/").append(knobTarget(row, channel).name().get());
+        }
+        showMessage(drumPadBank.getItemAt(channel).name().get(), knobLayout[key].title, names.toString());
     }
 
-    private void toggleSendPair(final int channel) {
-        secondSendPair[padKey(channel)] = !isSecondSendPair(channel);
-        updateSendBinding(channel);
-        final String pair = isSecondSendPair(channel) ? "Sends 3-4" : "Sends 1-2";
-        final String names = knobTarget(1, channel).name().get() + " / " + knobTarget(2, channel).name().get();
-        showMessage(drumPadBank.getItemAt(channel).name().get(), pair, names);
+    /** Solo: every pad back to the hybrid layout. */
+    private void resetLayouts() {
+        java.util.Arrays.fill(knobLayout, KnobLayout.HYBRID);
+        for (int i = 0; i < NUM_CHANNELS; i++) {
+            updateBindings(i);
+        }
+        showMessage(cursorTrack.name().get(), "MIDI Mix", "All hybrid");
     }
 
     // ---- display on the Fire
